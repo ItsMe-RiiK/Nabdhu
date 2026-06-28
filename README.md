@@ -39,7 +39,7 @@ sudo apt install build-essential libgtk-3-dev dmidecode policykit-1
 Compile using the provided Makefile:
 
 ```bash
-git clone 
+git clone https://github.com/ItsMe-RiiK/MyTaskManager.git
 cd MyTaskManager
 make
 ```
