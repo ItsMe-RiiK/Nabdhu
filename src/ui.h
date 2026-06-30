@@ -22,7 +22,7 @@ private:
 
   // Process Tab
   GtkWidget *process_treeview;
-  GtkListStore *process_store;
+  GtkTreeStore *process_store;
   GtkTreeModel *process_filter;
   GtkWidget *process_context_menu;
 

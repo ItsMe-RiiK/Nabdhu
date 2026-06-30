@@ -1,6 +1,8 @@
 #include "ui.h"
 #include <algorithm>
+#include <functional>
 #include <limits.h>
+#include <set>
 #include <string>
 #include <unistd.h>
 
@@ -147,7 +149,7 @@ void UIManager::setup_process_tab(GtkWidget *parent) {
   gtk_widget_set_vexpand(scrolled_window, TRUE);
   gtk_box_pack_start(GTK_BOX(parent), scrolled_window, TRUE, TRUE, 0);
 
-  process_store = gtk_list_store_new(
+  process_store = gtk_tree_store_new(
       NUM_PROC_COLS, G_TYPE_INT, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING,
       G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING);
   process_filter =
@@ -372,44 +374,109 @@ std::string UIManager::get_color_for_usage(double usage) {
 void UIManager::refresh_processes() {
   auto processes = process_manager.get_processes();
   std::map<int, ProcessInfo> new_procs;
+  std::map<int, std::vector<int>> children_map;
+
   for (const auto &p : processes) {
     new_procs[p.pid] = p;
+    children_map[p.ppid].push_back(p.pid);
   }
 
-  GtkTreeIter iter;
-  gboolean valid =
-      gtk_tree_model_get_iter_first(GTK_TREE_MODEL(process_store), &iter);
+  auto get_expected_parent = [&](int ppid) -> int {
+    if (new_procs.find(ppid) == new_procs.end())
+      return 0;
+    if (children_map[ppid].size() > 1)
+      return ppid;
+    return 0;
+  };
 
-  while (valid) {
-    int pid;
-    gtk_tree_model_get(GTK_TREE_MODEL(process_store), &iter, COL_PID, &pid, -1);
+  std::set<int> remaining_pids;
+  for (const auto &p : processes)
+    remaining_pids.insert(p.pid);
 
-    auto it = new_procs.find(pid);
-    if (it != new_procs.end()) {
-      char cpu_buf[16];
-      snprintf(cpu_buf, sizeof(cpu_buf), "%.1f%%", it->second.cpu_usage);
-      std::string mem_str = std::to_string(it->second.memory_kb / 1024) + " MB";
-      std::string bg_color = get_color_for_usage(it->second.cpu_usage);
-      std::string display_name =
-          it->second.name + " (" + std::to_string(pid) + ")";
+  std::map<int, GtkTreeIter> current_iters;
 
-      gtk_list_store_set(process_store, &iter, COL_NAME, display_name.c_str(),
-                         COL_USER, it->second.user.c_str(), COL_STATUS,
-                         it->second.state.c_str(), COL_CPU, cpu_buf, COL_MEM,
-                         mem_str.c_str(), COL_BG_COLOR,
-                         bg_color.empty() ? NULL : bg_color.c_str(),
-                         COL_FG_COLOR, bg_color.empty() ? NULL : "#000000", -1);
-      new_procs.erase(it);
-      valid = gtk_tree_model_iter_next(GTK_TREE_MODEL(process_store), &iter);
-    } else {
-      valid = gtk_list_store_remove(process_store, &iter);
+  std::function<void(GtkTreeIter *, int)> traverse_and_update =
+      [&](GtkTreeIter *parent_iter, int expected_parent_pid) {
+        GtkTreeIter iter;
+        gboolean valid;
+        if (parent_iter == nullptr) {
+          valid = gtk_tree_model_get_iter_first(GTK_TREE_MODEL(process_store),
+                                                &iter);
+        } else {
+          valid = gtk_tree_model_iter_children(GTK_TREE_MODEL(process_store),
+                                               &iter, parent_iter);
+        }
+
+        while (valid) {
+          int pid;
+          gtk_tree_model_get(GTK_TREE_MODEL(process_store), &iter, COL_PID,
+                             &pid, -1);
+
+          auto it = new_procs.find(pid);
+          bool keep = false;
+
+          if (it != new_procs.end()) {
+            int expected_ppid = get_expected_parent(it->second.ppid);
+            if (expected_ppid == expected_parent_pid) {
+              keep = true;
+            }
+          }
+
+          if (keep) {
+            const auto &p = it->second;
+            char cpu_buf[16];
+            snprintf(cpu_buf, sizeof(cpu_buf), "%.1f%%", p.cpu_usage);
+            std::string mem_str = std::to_string(p.memory_kb / 1024) + " MB";
+            std::string bg_color = get_color_for_usage(p.cpu_usage);
+            std::string display_name =
+                p.name + " (" + std::to_string(p.pid) + ")";
+
+            gtk_tree_store_set(
+                process_store, &iter, COL_NAME, display_name.c_str(), COL_USER,
+                p.user.c_str(), COL_STATUS, p.state.c_str(), COL_CPU, cpu_buf,
+                COL_MEM, mem_str.c_str(), COL_BG_COLOR,
+                bg_color.empty() ? NULL : bg_color.c_str(), COL_FG_COLOR,
+                bg_color.empty() ? NULL : "#000000", -1);
+
+            current_iters[pid] = iter;
+            remaining_pids.erase(pid);
+
+            GtkTreeIter current_node_iter = iter;
+            traverse_and_update(&current_node_iter, pid);
+
+            valid =
+                gtk_tree_model_iter_next(GTK_TREE_MODEL(process_store), &iter);
+          } else {
+            valid = gtk_tree_store_remove(process_store, &iter);
+          }
+        }
+      };
+
+  traverse_and_update(nullptr, 0);
+
+  std::function<void(int)> insert_node = [&](int pid) {
+    if (current_iters.find(pid) != current_iters.end())
+      return;
+    if (remaining_pids.find(pid) == remaining_pids.end())
+      return;
+
+    const auto &p = new_procs[pid];
+    int expected_ppid = get_expected_parent(p.ppid);
+
+    GtkTreeIter parent_iter;
+    bool has_parent = false;
+
+    if (expected_ppid != 0) {
+      insert_node(expected_ppid);
+      if (current_iters.find(expected_ppid) != current_iters.end()) {
+        parent_iter = current_iters[expected_ppid];
+        has_parent = true;
+      }
     }
-  }
 
-  for (const auto &pair : new_procs) {
-    const auto &p = pair.second;
     GtkTreeIter new_iter;
-    gtk_list_store_append(process_store, &new_iter);
+    gtk_tree_store_append(process_store, &new_iter,
+                          has_parent ? &parent_iter : nullptr);
 
     char cpu_buf[16];
     snprintf(cpu_buf, sizeof(cpu_buf), "%.1f%%", p.cpu_usage);
@@ -417,12 +484,20 @@ void UIManager::refresh_processes() {
     std::string bg_color = get_color_for_usage(p.cpu_usage);
     std::string display_name = p.name + " (" + std::to_string(p.pid) + ")";
 
-    gtk_list_store_set(process_store, &new_iter, COL_PID, p.pid, COL_NAME,
+    gtk_tree_store_set(process_store, &new_iter, COL_PID, p.pid, COL_NAME,
                        display_name.c_str(), COL_USER, p.user.c_str(),
                        COL_STATUS, p.state.c_str(), COL_CPU, cpu_buf, COL_MEM,
                        mem_str.c_str(), COL_BG_COLOR,
                        bg_color.empty() ? NULL : bg_color.c_str(), COL_FG_COLOR,
                        bg_color.empty() ? NULL : "#000000", -1);
+
+    current_iters[pid] = new_iter;
+    remaining_pids.erase(pid);
+  };
+
+  std::vector<int> to_insert(remaining_pids.begin(), remaining_pids.end());
+  for (int pid : to_insert) {
+    insert_node(pid);
   }
 
   refresh_performance();
@@ -719,17 +794,51 @@ gboolean UIManager::on_search_filter_visible(GtkTreeModel *model,
   if (ui->search_query.empty())
     return TRUE;
 
-  char *name;
-  gtk_tree_model_get(model, iter, COL_NAME, &name, -1);
-  if (!name)
-    return FALSE;
+  // Helper lambda to check if a single iter matches the query
+  auto node_matches = [&](GtkTreeIter *node_iter) -> bool {
+    char *name;
+    gtk_tree_model_get(model, node_iter, COL_NAME, &name, -1);
+    if (!name)
+      return false;
+    std::string name_str(name);
+    g_free(name);
+    std::transform(name_str.begin(), name_str.end(), name_str.begin(),
+                   ::tolower);
+    return name_str.find(ui->search_query) != std::string::npos;
+  };
 
-  std::string name_str(name);
-  g_free(name);
+  // 1. Check self and ancestors
+  GtkTreeIter current = *iter;
+  while (true) {
+    if (node_matches(&current))
+      return TRUE;
 
-  std::transform(name_str.begin(), name_str.end(), name_str.begin(), ::tolower);
+    GtkTreeIter parent;
+    if (!gtk_tree_model_iter_parent(model, &parent, &current)) {
+      break;
+    }
+    current = parent;
+  }
 
-  return name_str.find(ui->search_query) != std::string::npos;
+  // 2. Check children recursively
+  std::function<bool(GtkTreeIter *)> check_children =
+      [&](GtkTreeIter *parent_iter) -> bool {
+    GtkTreeIter child;
+    if (gtk_tree_model_iter_children(model, &child, parent_iter)) {
+      do {
+        if (node_matches(&child))
+          return true;
+        if (check_children(&child))
+          return true;
+      } while (gtk_tree_model_iter_next(model, &child));
+    }
+    return false;
+  };
+
+  if (check_children(iter))
+    return TRUE;
+
+  return FALSE;
 }
 
 gboolean UIManager::on_service_search_filter_visible(GtkTreeModel *model,

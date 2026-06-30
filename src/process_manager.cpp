@@ -290,6 +290,9 @@ std::vector<ProcessInfo> ProcessManager::get_processes() {
             } else if (line.rfind("Uid:", 0) == 0) {
               std::stringstream ss(line.substr(5));
               ss >> uid;
+            } else if (line.rfind("PPid:", 0) == 0) {
+              std::stringstream ss(line.substr(5));
+              ss >> info.ppid;
             } else if (line.rfind("VmRSS:", 0) == 0) {
               std::stringstream ss(line.substr(7));
               ss >> info.memory_kb;
@@ -315,7 +318,8 @@ std::vector<ProcessInfo> ProcessManager::get_processes() {
             // If the name is generic like "exe" or "AppRun", try to use the
             // parent directory name
             if (cmd_name == "exe" || cmd_name == "AppRun" ||
-                cmd_name == "chrome_crashpad_handler") {
+                cmd_name == "chrome_crashpad_handler" || info.name == "Main" ||
+                info.name == "Worker" || info.name == "Zygote") {
               if (pos != std::string::npos && pos > 0) {
                 size_t parent_pos = cmdline.find_last_of('/', pos - 1);
                 if (parent_pos != std::string::npos) {
@@ -333,7 +337,8 @@ std::vector<ProcessInfo> ProcessManager::get_processes() {
             // with the old name (this restores untruncated names without
             // breaking descriptive thread names like "Web Content") Or if the
             // original name was literally "exe"
-            if (info.name == "exe" || cmd_name.rfind(info.name, 0) == 0) {
+            if (info.name == "exe" || info.name == "Main" ||
+                info.name == "Worker" || cmd_name.rfind(info.name, 0) == 0) {
               info.name = cmd_name;
             }
           }
@@ -349,9 +354,10 @@ std::vector<ProcessInfo> ProcessManager::get_processes() {
             if (rp != std::string::npos) {
               std::string rest = line.substr(rp + 2);
               std::stringstream ss(rest);
-              std::string dummy;
+              std::string dummy, dummy_state;
               unsigned long long utime, stime;
-              for (int i = 0; i < 11; ++i)
+              ss >> dummy_state >> info.ppid;
+              for (int i = 0; i < 9; ++i)
                 ss >> dummy;
               ss >> utime >> stime;
 

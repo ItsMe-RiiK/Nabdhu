@@ -6,6 +6,7 @@
 
 struct ProcessInfo {
   int pid;
+  int ppid;
   std::string user;
   std::string name;
   std::string state;
