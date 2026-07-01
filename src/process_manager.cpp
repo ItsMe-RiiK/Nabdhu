@@ -231,7 +231,8 @@ bool ProcessManager::check_is_app(int pid) {
         end_pos = env_vars.length();
 
       std::string var = env_vars.substr(pos, end_pos - pos);
-      if (var.rfind("DISPLAY=", 0) == 0) {
+      if (var.rfind("DISPLAY=", 0) == 0 ||
+          var.rfind("WAYLAND_DISPLAY=", 0) == 0) {
         return true;
       }
       pos = end_pos + 1;

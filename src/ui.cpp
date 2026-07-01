@@ -193,8 +193,7 @@ void UIManager::setup_process_tab(GtkWidget *parent) {
     gtk_tree_view_append_column(GTK_TREE_VIEW(process_treeview), column);
   }
 
-  // Flat list doesn't need expand_all
-  // Disable native GTK popup search so it doesn't conflict with our search bar
+  // Disable native GTK popup search so it doesn't conflict with app search bar
   gtk_tree_view_set_enable_search(GTK_TREE_VIEW(process_treeview), FALSE);
 
   process_context_menu = gtk_menu_new();
@@ -360,15 +359,23 @@ void UIManager::setup_service_tab(GtkWidget *parent) {
 }
 
 std::string UIManager::get_color_for_usage(double usage) {
+  std::string color = "";
   if (usage >= 75.0)
-    return "#ffcccc"; // Semi red
-  if (usage >= 50.0)
-    return "#ffebcc"; // Orange
-  if (usage >= 25.0)
-    return "#e6ffcc"; // Green-yellow
-  if (usage > 0.1)
-    return "#ccffcc"; // Green
-  return "";          // Natural theme (Null)
+    color = "#ff5608e0"; // Semi red
+  else if (usage >= 50.0)
+    color = "#ff9900ff"; // Orange
+  else if (usage >= 25.0)
+    color = "#c8ff00ff"; // Green-yellow
+  else if (usage > 0.1)
+    color = "#2aa514e0"; // Green
+  else
+    return ""; // Natural theme (Null)
+
+  // Automatically remove alpha channel if format is #RRGGBBAA
+  if (color.length() == 9 && color[0] == '#') {
+    return color.substr(0, 7);
+  }
+  return color;
 }
 
 void UIManager::refresh_processes() {
@@ -383,86 +390,107 @@ void UIManager::refresh_processes() {
 
   auto get_expected_parent = [&](int pid, int ppid, const std::string &name,
                                  bool is_app) -> int {
-    bool parent_exists = (new_procs.find(ppid) != new_procs.end());
+    if (new_procs.find(ppid) == new_procs.end())
+      return 0;
 
-    // 1. Categorize Parent: Is it System Init or Desktop Environment (DE)?
-    bool parent_is_init = false;
-    bool parent_is_de = false;
-
-    if (parent_exists) {
-      std::string p_name = new_procs[ppid].name;
-      std::string p_base = p_name.substr(0, p_name.find(' '));
-
-      // Detect System Core (Daemon)
-      if (ppid <= 2 || p_base.find("systemd") != std::string::npos ||
-          p_base.find("kthreadd") != std::string::npos ||
-          p_base.find("lightdm") != std::string::npos) {
-        parent_is_init = true;
-      }
-      // Detect Desktop Environment
-      else if (p_base.find("cinnamon") != std::string::npos ||
-               p_base.find("gnome-shell") != std::string::npos ||
-               p_base.find("plasma") != std::string::npos) {
-        parent_is_de = true;
-      }
-    } else {
-      parent_is_init = true; // Orphan considered to run to init
-    }
-
-    // 2. Is this process itself a component of DE?
+    std::string p_name = new_procs[ppid].name;
+    std::string p_base = p_name.substr(0, p_name.find(' '));
     std::string my_base = name.substr(0, name.find(' '));
-    bool am_i_de = (my_base.find("cinnamon") != std::string::npos ||
-                    my_base.find("gnome-shell") != std::string::npos);
 
-    // 3. If the parent is a normal application (not Init & not DE), follow OS
-    // Tree! This keeps the original process like bwrap -> glycin-svg intact
-    // nested.
-    if (!parent_is_init && !parent_is_de) {
-      return ppid;
-    }
+    // 1. Parent Categories (Core or DE)
+    bool parent_is_init =
+        (ppid <= 2 || p_base.find("systemd") != std::string::npos ||
+         p_base.find("kthreadd") != std::string::npos ||
+         p_base.find("lightdm") != std::string::npos);
 
-    // 4. SMART GROUPING (Find parent for separate child processes)
+    bool parent_is_de = (p_base.find("cinnamon") != std::string::npos ||
+                         p_base.find("gnome-shell") != std::string::npos ||
+                         p_base.find("plasma") != std::string::npos);
+
+    // 2. FILTER DAEMON (Core)
+    bool is_system_helper =
+        (my_base.find("csd-") == 0 || my_base.find("xdg-") == 0 ||
+         my_base.find("evolution") == 0 || my_base.find("dbus") == 0 ||
+         my_base.find("gvfs") == 0 || my_base.find("polkit") == 0 ||
+         my_base.find("dconf") == 0 || my_base.find("at-spi") == 0 ||
+         name.find("daemon") != std::string::npos ||
+         name.find("portal") != std::string::npos);
+
+    // 3. FILTER APP
+    bool is_known_app =
+        (my_base == "msedge" || my_base == "chrome" || my_base == "firefox" ||
+         my_base == "code" || my_base == "brave" || my_base == "sober" ||
+         my_base == "taskmanager");
+
+    // 4. SMART GROUPING
     int best_parent_pid = 0;
     for (const auto &pair : new_procs) {
       if (pair.first == pid)
         continue;
-
       std::string cand_name = pair.second.name;
       std::string cand_base = cand_name.substr(0, cand_name.find(' '));
-
-      // Check Prefix: Does this process name start with the candidate's name?
-      // (Example: "msedge_crashpad" starts with the word "msedge")
       if (cand_base.length() >= 3 && name.find(cand_base) == 0) {
         if (best_parent_pid == 0 || pair.first < best_parent_pid) {
           best_parent_pid = pair.first;
         }
       }
     }
-
     if (best_parent_pid != 0 && best_parent_pid < pid) {
-      return best_parent_pid; // Successfully found parent, merge to Master!
+      return best_parent_pid;
     }
 
-    // 5. Breakout Logic (Breakout to Surface)
-    if (parent_is_de && !am_i_de) {
-      // If called by DE (e.g., clicking msedge shortcut in Cinnamon menu),
-      // Always free to root, regardless of is_app true/false.
+    // 5. IF PARENT IS NOT INIT, FOLLOW ORIGINAL PARENT
+    if (!parent_is_init && !parent_is_de)
+      return ppid;
+
+    // 6. RULES FOR FREEING TO SURFACE
+    if (is_system_helper)
+      return ppid;
+    if (is_app || is_known_app)
       return 0;
-    }
 
-    if (parent_is_init && !am_i_de) {
-      // If child is systemd, free only if it is proven to be a GUI application
-      // (is_app = true). Background service (is_app = false) will run to the
-      // 'else' block and remain hidden.
-      if (is_app) {
-        return 0;
-      } else {
-        return parent_exists ? ppid : 0;
+    return ppid;
+  };
+
+  std::map<int, std::vector<int>> actual_children;
+  std::map<int, int> actual_parent;
+  for (const auto &p : processes) {
+    actual_parent[p.pid] = get_expected_parent(p.pid, p.ppid, p.name, p.is_app);
+    if (actual_parent[p.pid] != 0 && actual_parent[p.pid] != p.pid) {
+      actual_children[actual_parent[p.pid]].push_back(p.pid);
+    }
+  }
+
+  std::map<int, double> accumulated_cpu;
+  std::map<int, double> accumulated_mem;
+  std::set<int> calc_visiting;
+
+  std::function<void(int)> calc_accum = [&](int pid) {
+    if (calc_visiting.find(pid) != calc_visiting.end())
+      return; // prevent cycle
+    calc_visiting.insert(pid);
+
+    double cpu = new_procs[pid].cpu_usage;
+    double mem = new_procs[pid].memory_kb;
+
+    for (int child_pid : actual_children[pid]) {
+      if (calc_visiting.find(child_pid) == calc_visiting.end()) {
+        calc_accum(child_pid);
+        cpu += accumulated_cpu[child_pid];
+        mem += accumulated_mem[child_pid];
       }
     }
-
-    return parent_exists ? ppid : 0;
+    accumulated_cpu[pid] = cpu;
+    accumulated_mem[pid] = mem;
+    calc_visiting.erase(pid);
   };
+
+  for (const auto &pair : new_procs) {
+    int pid = pair.first;
+    if (actual_parent[pid] == 0 || actual_parent[pid] == pid) {
+      calc_accum(pid);
+    }
+  }
 
   std::set<int> remaining_pids;
   for (const auto &p : processes)
@@ -491,8 +519,7 @@ void UIManager::refresh_processes() {
           bool keep = false;
 
           if (it != new_procs.end()) {
-            int expected_ppid = get_expected_parent(
-                pid, it->second.ppid, it->second.name, it->second.is_app);
+            int expected_ppid = actual_parent[pid];
 
             if (expected_ppid == expected_parent_pid) {
               keep = true;
@@ -501,10 +528,13 @@ void UIManager::refresh_processes() {
 
           if (keep) {
             const auto &p = it->second;
+            double disp_cpu = accumulated_cpu[pid];
+            double disp_mem = accumulated_mem[pid];
+            
             char cpu_buf[16];
-            snprintf(cpu_buf, sizeof(cpu_buf), "%.1f%%", p.cpu_usage);
-            std::string mem_str = std::to_string(p.memory_kb / 1024) + " MB";
-            std::string bg_color = get_color_for_usage(p.cpu_usage);
+            snprintf(cpu_buf, sizeof(cpu_buf), "%.1f%%", disp_cpu);
+            std::string mem_str = std::to_string((unsigned long long)disp_mem / 1024) + " MB";
+            std::string bg_color = get_color_for_usage(disp_cpu);
             std::string display_name =
                 p.name + " (" + std::to_string(p.pid) + ")";
 
@@ -531,21 +561,27 @@ void UIManager::refresh_processes() {
 
   traverse_and_update(nullptr, 0);
 
+  std::set<int> visiting;
   std::function<void(int)> insert_node = [&](int pid) {
     if (current_iters.find(pid) != current_iters.end())
       return;
     if (remaining_pids.find(pid) == remaining_pids.end())
       return;
+    if (visiting.find(pid) != visiting.end())
+      return; // Cycle detected, prevent stack overflow!
+
+    visiting.insert(pid);
 
     const auto &p = new_procs[pid];
 
-    int expected_ppid = get_expected_parent(p.pid, p.ppid, p.name, p.is_app);
+    int expected_ppid = actual_parent[pid];
 
     GtkTreeIter parent_iter;
 
     bool has_parent = false;
 
-    if (expected_ppid != 0) {
+    // Prevent self-parenting and resolve potential cycles safely
+    if (expected_ppid != 0 && expected_ppid != pid) {
       insert_node(expected_ppid);
       if (current_iters.find(expected_ppid) != current_iters.end()) {
         parent_iter = current_iters[expected_ppid];
@@ -557,10 +593,13 @@ void UIManager::refresh_processes() {
     gtk_tree_store_append(process_store, &new_iter,
                           has_parent ? &parent_iter : nullptr);
 
+    double disp_cpu = accumulated_cpu[pid];
+    double disp_mem = accumulated_mem[pid];
+
     char cpu_buf[16];
-    snprintf(cpu_buf, sizeof(cpu_buf), "%.1f%%", p.cpu_usage);
-    std::string mem_str = std::to_string(p.memory_kb / 1024) + " MB";
-    std::string bg_color = get_color_for_usage(p.cpu_usage);
+    snprintf(cpu_buf, sizeof(cpu_buf), "%.1f%%", disp_cpu);
+    std::string mem_str = std::to_string((unsigned long long)disp_mem / 1024) + " MB";
+    std::string bg_color = get_color_for_usage(disp_cpu);
     std::string display_name = p.name + " (" + std::to_string(p.pid) + ")";
 
     gtk_tree_store_set(process_store, &new_iter, COL_PID, p.pid, COL_NAME,
@@ -572,6 +611,7 @@ void UIManager::refresh_processes() {
 
     current_iters[pid] = new_iter;
     remaining_pids.erase(pid);
+    visiting.erase(pid);
   };
 
   std::vector<int> to_insert(remaining_pids.begin(), remaining_pids.end());
