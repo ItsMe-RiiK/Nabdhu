@@ -1,7 +1,7 @@
 root = true
 
-[.]
-end_of_lines = CRLF
+[*]
+end_of_line = lf
 
 [*.{hpp,h,c,cpp,hxx}]
 indent_style = space
