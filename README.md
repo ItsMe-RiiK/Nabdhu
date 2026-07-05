@@ -12,79 +12,74 @@ A modern, fast, and lightweight Task Manager for Linux, built natively with C++ 
 - **Hardware Details**: Displays RAM Speed (MHz), Slots used, Type (DDR4/5), and Form Factor directly in the GUI (requires root).
 - **Service Manager**: Seamlessly view, start, stop, and restart `systemd` background services without touching the terminal.
 - **Smart Search**: Filter processes and services instantly by simply typing anywhere on the screen (no need to click the search bar!).
-- **Modern UI**: Full Dark Mode support and elegant rounded corners perfectly integrated with modern Linux Desktop Environments (Cinnamon, GNOME).
+- **Modern UI**: Full Dark Mode support and elegant rounded corners perfectly integrated with modern Linux Desktop Environments (Cinnamon, GNOME). All graphical assets are embedded into a single portable binary.
 
 ## 🛠️ Prerequisites
 
 To compile and run this project, you will need the following installed on your system:
 
 - GCC / G++ (supporting C++17)
-- GTK+ 3.0 development files
-- Make
+- CMake (>= 3.10)
+- pkg-config
+- GTK+ 3.0 development files (`libgtk-3-dev` / `gtk3`)
 - `dmidecode` (Optional, but highly recommended for reading RAM hardware details)
-- `polkit` (Optional, for seamless GUI root access)
+- `polkit` (Optional, for seamless GUI root access via Start Menu)
 
 ### Installation on Arch Linux / Manjaro
 ```bash
-sudo pacman -S base-devel gtk3 dmidecode polkit
+sudo pacman -S base-devel cmake pkgconf gtk3 dmidecode polkit
 ```
 
 ### Installation on Ubuntu / Debian
 ```bash
-sudo apt install build-essential libgtk-3-dev dmidecode policykit-1
+sudo apt install build-essential cmake pkg-config libgtk-3-dev dmidecode policykit-1
 ```
 
 ## 🚀 Building the App
 
-Compile using the provided Makefile:
+This project uses CMake for an easy, out-of-source build configuration.
 
 ```bash
 git clone https://github.com/ItsMe-RiiK/MyTaskManager.git
 cd MyTaskManager
-make
+
+# Generate build files
+cmake -B build
+
+# Compile the application
+cmake --build build
 ```
 
-To clean the compiled binaries:
-```bash
-make clean
-```
+## 💻 System-Wide Installation (Recommended)
 
-## 🏃 Running the Application
-
-You can start the task manager normally by running:
-```bash
-./taskmanager
-```
-
-### Running with Root Access (Recommended)
 Because Linux's security model protects deep hardware information (like RAM Speed or Motherboard slots) and the ability to start/stop system services, **this application is best run as Root**.
 
-Instead of using `sudo` from the terminal every time, you can integrate it seamlessly into your Desktop Environment using Polkit!
+We provide a seamless system-wide installation that installs a secure Polkit wrapper (`run_taskmanager`). This securely elevates privileges while preserving your current `$DISPLAY` and graphical settings, ensuring it works perfectly on both **X11** and **Wayland**.
 
-1. **Enable the Wrapper**: Make the included wrapper script executable:
-   ```bash
-   chmod +x run_taskmanager.sh
-   ```
-2. **Install the Desktop Shortcut**:
-   Copy the `mytaskmanager.desktop` file to your applications folder:
-   ```bash
-   cp mytaskmanager.desktop ~/.local/share/applications/
-   ```
-   Now you can launch **My Linux Task Manager** directly from your Application Menu! It will securely prompt for your password via a GUI.
+To install the binary, icons, and Start Menu launcher system-wide, simply run:
 
-3. **(Optional) Bypass Password Prompt:**
-   If you want the Task Manager to open instantly without asking for a password every time, you can add a Polkit rule:
-   ```bash
-   sudo tee /etc/polkit-1/rules.d/99-mytaskmanager.rules <<EOF
-   polkit.addRule(function(action, subject) {
-       if (action.id == "org.freedesktop.policykit.exec" &&
-           action.lookup("program") == "$PWD/run_taskmanager.sh" &&
-           subject.user == "$USER") {
-           return polkit.Result.YES;
-       }
-   });
-   EOF
-   ```
+```bash
+sudo make -C build install
+sudo update-desktop-database /usr/local/share/applications/
+```
+
+Once installed, you can launch **TaskManager** directly from your Desktop Environment's Application Menu! It will securely prompt for your password via your native graphical prompt (e.g. GNOME PolicyKit dialog) and launch properly.
+
+### Running Manually from Terminal
+You can still start the task manager normally by running:
+```bash
+/usr/local/bin/taskmanager
+```
+Or for full features:
+```bash
+sudo /usr/local/bin/run_taskmanager
+```
+
+## 🧹 Code Quality and Formatting
+
+The project ships with strict code formatting configurations.
+- Run `clang-format` based on the `.clang-format` (LLVM Style).
+- Static analysis is enabled via the configured `.clang-tidy` which ensures high code quality while intelligently ignoring UI-framework specific macros.
 
 ## ⌨️ Controls
 
