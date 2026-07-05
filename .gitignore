@@ -7,3 +7,4 @@ taskmanager
 compile_flags.txt
 run_taskmanager
 .clang-format
+.clang-tidy
