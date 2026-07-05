@@ -3,7 +3,8 @@
 #include <string>
 #include <vector>
 
-struct ServiceInfo {
+struct ServiceInfo
+{
   std::string name;
   std::string load_state;
   std::string active_state;
@@ -11,7 +12,8 @@ struct ServiceInfo {
   std::string description;
 };
 
-class ServiceManager {
+class ServiceManager
+{
 public:
   ServiceManager();
   ~ServiceManager();

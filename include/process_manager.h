@@ -4,7 +4,8 @@
 #include <string>
 #include <vector>
 
-struct ProcessInfo {
+struct ProcessInfo
+{
   int pid;
   int ppid;
   std::string user;
@@ -15,16 +16,15 @@ struct ProcessInfo {
   bool is_app;
 };
 
-struct GlobalCpuData {
-  unsigned long long user = 0, nice = 0, system = 0, idle = 0, iowait = 0,
-                     irq = 0, softirq = 0, steal = 0;
-  unsigned long long total() const {
-    return user + nice + system + idle + iowait + irq + softirq + steal;
-  }
+struct GlobalCpuData
+{
+  unsigned long long user = 0, nice = 0, system = 0, idle = 0, iowait = 0, irq = 0, softirq = 0, steal = 0;
+  unsigned long long total() const { return user + nice + system + idle + iowait + irq + softirq + steal; }
   unsigned long long idle_all() const { return idle + iowait; }
 };
 
-struct GlobalMemData {
+struct GlobalMemData
+{
   long long total_kb = 0;
   long long free_kb = 0;
   long long available_kb = 0;
@@ -33,7 +33,8 @@ struct GlobalMemData {
   long long swap_free_kb = 0;
 };
 
-struct MemHardwareInfo {
+struct MemHardwareInfo
+{
   std::string speed = "-";
   std::string type = "-";
   std::string form_factor = "-";
@@ -41,25 +42,27 @@ struct MemHardwareInfo {
   int slots_total = 0;
 };
 
-class ProcessManager {
+class ProcessManager
+{
 public:
   ProcessManager();
   ~ProcessManager();
 
   std::vector<ProcessInfo> get_processes();
-  bool kill_process(int pid);
+  static bool kill_process(int pid);
 
   double get_global_cpu_usage();
-  GlobalMemData get_global_memory();
-  MemHardwareInfo get_memory_hardware_info();
+  static GlobalMemData get_global_memory();
+  static MemHardwareInfo get_memory_hardware_info();
 
   long get_system_uptime();
-  int get_cpu_threads_count();
+  static int get_cpu_threads_count();
 
 private:
   long hertz;
 
-  struct CpuData {
+  struct CpuData
+  {
     unsigned long long utime;
     unsigned long long stime;
   };
@@ -71,10 +74,10 @@ private:
   bool first_global_cpu_run;
   bool first_process_run;
 
-  double get_uptime_internal();
-  long get_hertz();
-  std::string get_user_from_uid(int uid);
-  std::string translate_state(const std::string &state_char);
-  GlobalCpuData read_global_cpu_data();
-  bool check_is_app(int pid);
+  static double get_uptime_internal();
+  long get_hertz() const;
+  static std::string get_user_from_uid(int uid);
+  static std::string translate_state(const std::string &state_char);
+  static GlobalCpuData read_global_cpu_data();
+  static bool check_is_app(int pid);
 };

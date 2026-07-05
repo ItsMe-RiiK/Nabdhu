@@ -6,7 +6,8 @@
 #include <string>
 #include <vector>
 
-class UIManager {
+class UIManager
+{
 public:
   UIManager();
   ~UIManager();
@@ -60,8 +61,7 @@ private:
   void setup_performance_tab(GtkWidget *parent);
   void setup_service_tab(GtkWidget *parent);
 
-  static gboolean on_window_key_press(GtkWidget *widget, GdkEventKey *event,
-                                      gpointer user_data);
+  static gboolean on_window_key_press(GtkWidget *widget, GdkEventKey *event, gpointer user_data);
 
   void refresh_processes();
   void refresh_performance();
@@ -73,26 +73,18 @@ private:
   static gboolean on_timer_tick(gpointer user_data);
 
   // Graph drawing callbacks
-  static gboolean on_draw_cpu_graph(GtkWidget *widget, cairo_t *cr,
-                                    gpointer user_data);
-  static gboolean on_draw_mem_graph(GtkWidget *widget, cairo_t *cr,
-                                    gpointer user_data);
+  static gboolean on_draw_cpu_graph(GtkWidget *widget, cairo_t *cr, gpointer user_data);
+  static gboolean on_draw_mem_graph(GtkWidget *widget, cairo_t *cr, gpointer user_data);
 
   // Process Tab Callbacks
   static void on_kill_process_clicked(GtkWidget *widget, gpointer user_data);
-  static gboolean on_process_button_press(GtkWidget *widget,
-                                          GdkEventButton *event,
-                                          gpointer user_data);
+  static gboolean on_process_button_press(GtkWidget *widget, GdkEventButton *event, gpointer user_data);
 
   static void on_search_changed(GtkSearchEntry *entry, gpointer data);
-  static gboolean on_search_filter_visible(GtkTreeModel *model,
-                                           GtkTreeIter *iter, gpointer data);
-  static gboolean on_service_search_filter_visible(GtkTreeModel *model,
-                                                   GtkTreeIter *iter,
-                                                   gpointer data);
+  static gboolean on_search_filter_visible(GtkTreeModel *model, GtkTreeIter *iter, gpointer data);
+  static gboolean on_service_search_filter_visible(GtkTreeModel *model, GtkTreeIter *iter, gpointer data);
   static void on_context_menu_end_task(GtkMenuItem *item, gpointer user_data);
-  static void on_context_menu_open_file_location(GtkMenuItem *item,
-                                                 gpointer user_data);
+  static void on_context_menu_open_file_location(GtkMenuItem *item, gpointer user_data);
 
   // Service Tab Callbacks
   static void on_start_service_clicked(GtkWidget *widget, gpointer user_data);
@@ -100,8 +92,7 @@ private:
   static void on_restart_service_clicked(GtkWidget *widget, gpointer user_data);
 
   // Perf Tab Sidebar Callbacks
-  static void on_perf_sidebar_row_activated(GtkListBox *box, GtkListBoxRow *row,
-                                            gpointer user_data);
+  static void on_perf_sidebar_row_activated(GtkListBox *box, GtkListBoxRow *row, gpointer user_data);
 
   // GtkStack for graphs
   GtkWidget *perf_stack;

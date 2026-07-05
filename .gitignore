@@ -1,6 +1,9 @@
+.cache/
+assets/
+build/
 obj/
 resource/
 taskmanager
 compile_flags.txt
-run_taskmanager.sh
-*.o
+run_taskmanager
+.clang-format

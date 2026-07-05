@@ -9,21 +9,23 @@ ServiceManager::ServiceManager() {}
 
 ServiceManager::~ServiceManager() {}
 
-std::vector<ServiceInfo> ServiceManager::get_services() {
+std::vector<ServiceInfo> ServiceManager::get_services()
+{
   std::vector<ServiceInfo> services;
 
   std::string cmd = "systemctl list-units --type=service --all --no-pager "
                     "--no-legend --plain";
 
   std::array<char, 256> buffer;
-  std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd.c_str(), "r"),
-                                                pclose);
-  if (!pipe) {
+  std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd.c_str(), "r"), pclose);
+  if (!pipe)
+  {
     return services;
   }
 
   std::string result;
-  while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+  while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr)
+  {
     std::string line = buffer.data();
     if (line.empty())
       continue;
@@ -35,14 +37,17 @@ std::vector<ServiceInfo> ServiceManager::get_services() {
 
     std::string desc;
     std::getline(ss, desc);
-    if (!desc.empty()) {
+    if (!desc.empty())
+    {
       size_t start = desc.find_first_not_of(" \t");
-      if (start != std::string::npos) {
+      if (start != std::string::npos)
+      {
         info.description = desc.substr(start);
       }
     }
 
-    if (!info.name.empty() && info.name.find(".service") != std::string::npos) {
+    if (!info.name.empty() && info.name.find(".service") != std::string::npos)
+    {
       services.push_back(info);
     }
   }
@@ -50,17 +55,20 @@ std::vector<ServiceInfo> ServiceManager::get_services() {
   return services;
 }
 
-bool ServiceManager::start_service(const std::string &name) {
+bool ServiceManager::start_service(const std::string &name)
+{
   std::string cmd = "pkexec systemctl start " + name;
   return system(cmd.c_str()) == 0;
 }
 
-bool ServiceManager::stop_service(const std::string &name) {
+bool ServiceManager::stop_service(const std::string &name)
+{
   std::string cmd = "pkexec systemctl stop " + name;
   return system(cmd.c_str()) == 0;
 }
 
-bool ServiceManager::restart_service(const std::string &name) {
+bool ServiceManager::restart_service(const std::string &name)
+{
   std::string cmd = "pkexec systemctl restart " + name;
   return system(cmd.c_str()) == 0;
 }
