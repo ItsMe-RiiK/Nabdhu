@@ -1,5 +1,4 @@
 #pragma once
-
 #include <map>
 #include <string>
 #include <vector>
@@ -19,8 +18,16 @@ struct ProcessInfo
 struct GlobalCpuData
 {
   unsigned long long user = 0, nice = 0, system = 0, idle = 0, iowait = 0, irq = 0, softirq = 0, steal = 0;
-  unsigned long long total() const { return user + nice + system + idle + iowait + irq + softirq + steal; }
-  unsigned long long idle_all() const { return idle + iowait; }
+
+  unsigned long long total() const
+  {
+    return user + nice + system + idle + iowait + irq + softirq + steal;
+  }
+
+  unsigned long long idle_all() const
+  {
+    return idle + iowait;
+  }
 };
 
 struct GlobalMemData

@@ -467,7 +467,7 @@ std::vector<ProcessInfo> ProcessManager::get_processes()
                 ss >> dummy;
               ss >> utime >> stime;
 
-              current_cpu_map[pid] = {utime, stime};
+              current_cpu_map[pid] = { utime, stime };
 
               if (!first_process_run && prev_process_cpu.count(pid) > 0)
               {

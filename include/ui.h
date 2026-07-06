@@ -1,5 +1,4 @@
 #pragma once
-
 #include "process_manager.h"
 #include "service_manager.h"
 #include <gtk/gtk.h>

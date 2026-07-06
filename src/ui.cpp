@@ -162,9 +162,9 @@ void UIManager::setup_process_tab(GtkWidget *parent)
 
   gtk_container_add(GTK_CONTAINER(scrolled_window), process_treeview);
 
-  const char *headers[] = {"PID", "Apps Name", "User", "Status", "CPU (%)", "Memory (%)", "BG", "FG"};
+  const char *headers[] = { "PID", "Apps Name", "User", "Status", "CPU (%)", "Memory (%)", "BG", "FG" };
   // Skip PID and BG in headers
-  int col_indices[] = {COL_NAME, COL_USER, COL_STATUS, COL_CPU, COL_MEM};
+  int col_indices[] = { COL_NAME, COL_USER, COL_STATUS, COL_CPU, COL_MEM };
 
   for (int i : col_indices)
   {
@@ -307,7 +307,7 @@ void UIManager::setup_service_tab(GtkWidget *parent)
 
   gtk_container_add(GTK_CONTAINER(scrolled_window), service_treeview);
 
-  const char *headers[] = {"Service Name", "Load", "Active", "Sub", "Description"};
+  const char *headers[] = { "Service Name", "Load", "Active", "Sub", "Description" };
   for (int i = 0; i < NUM_SVC_COLS; ++i)
   {
     GtkCellRenderer *renderer = gtk_cell_renderer_text_new();
