@@ -507,6 +507,7 @@ void UIManager::run(int argc, char *argv[])
             terminal_output.push_back("Error running command.");
             return;
           }
+          auto last_post = std::chrono::steady_clock::now();
           char buffer[256];
           while (fgets(buffer, sizeof(buffer), pipe) != nullptr)
           {
@@ -519,8 +520,15 @@ void UIManager::run(int argc, char *argv[])
               if (terminal_output.size() > 500)
                 terminal_output.erase(terminal_output.begin());
             }
-            screen.PostEvent(Event::Custom);
+
+            auto now = std::chrono::steady_clock::now();
+            if (std::chrono::duration_cast<std::chrono::milliseconds>(now - last_post).count() > 50)
+            {
+              screen.PostEvent(Event::Custom);
+              last_post = now;
+            }
           }
+          screen.PostEvent(Event::Custom);
           pclose(pipe);
         })
         .detach();
