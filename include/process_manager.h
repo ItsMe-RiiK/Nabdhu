@@ -1,7 +1,14 @@
 #pragma once
-#include <map>
 #include <string>
+#include <unordered_map>
 #include <vector>
+
+struct CachedProcessData
+{
+  std::string command;
+  std::string name;
+  bool is_app;
+};
 
 struct ProcessInfo
 {
@@ -86,7 +93,9 @@ private:
     unsigned long long stime;
   };
 
-  std::map<int, CpuData> prev_process_cpu;
+  std::unordered_map<int, CpuData> prev_process_cpu;
+  std::unordered_map<int, CachedProcessData> process_cache;
+  double last_cache_time;
   double prev_uptime;
 
   std::vector<GlobalCpuData> prev_cpu_data;

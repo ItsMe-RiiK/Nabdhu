@@ -1,16 +1,19 @@
 #include "process_manager.h"
 
 #include <algorithm>
+#include <cstring>
 #include <dirent.h>
+#include <fcntl.h>
 #include <fstream>
 #include <iostream>
 #include <pwd.h>
 #include <signal.h>
 #include <sstream>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
 
-ProcessManager::ProcessManager() : prev_uptime(0), first_global_cpu_run(true), first_process_run(true)
+ProcessManager::ProcessManager() : last_cache_time(0.0), prev_uptime(0), first_global_cpu_run(true), first_process_run(true)
 {
   hertz = sysconf(_SC_CLK_TCK);
 }
@@ -456,27 +459,28 @@ int ProcessManager::get_cpu_threads_count()
 bool ProcessManager::check_is_app(int pid)
 {
   std::string env_path = "/proc/" + std::to_string(pid) + "/environ";
-  std::ifstream env_file(env_path);
-  if (env_file.is_open())
+  int fd = open(env_path.c_str(), O_RDONLY);
+  if (fd != -1)
   {
-    std::string env_vars;
-    std::stringstream buffer;
-    buffer << env_file.rdbuf();
-    env_vars = buffer.str();
-
-    size_t pos = 0;
-    while (pos < env_vars.length())
+    char buf[4096];
+    ssize_t bytes_read = read(fd, buf, sizeof(buf));
+    close(fd);
+    if (bytes_read > 0)
     {
-      size_t end_pos = env_vars.find('\0', pos);
-      if (end_pos == std::string::npos)
-        end_pos = env_vars.length();
-
-      std::string var = env_vars.substr(pos, end_pos - pos);
-      if (var.rfind("DISPLAY=", 0) == 0 || var.rfind("WAYLAND_DISPLAY=", 0) == 0)
+      size_t pos = 0;
+      while (pos < bytes_read)
       {
-        return true;
+        size_t end_pos = pos;
+        while (end_pos < bytes_read && buf[end_pos] != '\0')
+          end_pos++;
+
+        if (end_pos - pos >= 8 && strncmp(&buf[pos], "DISPLAY=", 8) == 0)
+          return true;
+        if (end_pos - pos >= 16 && strncmp(&buf[pos], "WAYLAND_DISPLAY=", 16) == 0)
+          return true;
+
+        pos = end_pos + 1;
       }
-      pos = end_pos + 1;
     }
   }
   return false;
@@ -492,7 +496,19 @@ std::vector<ProcessInfo> ProcessManager::get_processes()
   }
 
   double uptime = get_uptime_internal();
-  std::map<int, CpuData> current_cpu_map;
+  std::unordered_map<int, CpuData> current_cpu_map;
+  std::unordered_map<int, CachedProcessData> new_cache;
+
+  bool update_cache = false;
+  if (uptime - last_cache_time >= 2.0 || last_cache_time == 0.0)
+  {
+    update_cache = true;
+    last_cache_time = uptime;
+  }
+
+  char stat_buf[1024];
+  std::string line;
+  line.reserve(512);
 
   struct dirent *ent;
   while ((ent = readdir(dir)) != nullptr)
@@ -516,16 +532,15 @@ std::vector<ProcessInfo> ProcessManager::get_processes()
         ProcessInfo info;
         info.pid = pid;
         info.cpu_usage = 0.0;
-        info.is_app = check_is_app(pid);
+        info.memory_kb = 0;
+        int uid = -1;
 
         std::string status_path = "/proc/" + dir_name + "/status";
         std::ifstream status_file(status_path);
-        int uid = -1;
-        info.memory_kb = 0;
 
         if (status_file.is_open())
         {
-          std::string line;
+          line.clear();
           while (std::getline(status_file, line))
           {
             if (line.rfind("Name:", 0) == 0)
@@ -546,23 +561,19 @@ std::vector<ProcessInfo> ProcessManager::get_processes()
             }
             else if (line.rfind("Uid:", 0) == 0)
             {
-              std::stringstream ss(line.substr(5));
-              ss >> uid;
+              sscanf(line.c_str(), "Uid: %d", &uid);
             }
             else if (line.rfind("PPid:", 0) == 0)
             {
-              std::stringstream ss(line.substr(5));
-              ss >> info.ppid;
+              sscanf(line.c_str(), "PPid: %d", &info.ppid);
             }
             else if (line.rfind("Threads:", 0) == 0)
             {
-              std::stringstream ss(line.substr(8));
-              ss >> info.threads;
+              sscanf(line.c_str(), "Threads: %d", &info.threads);
             }
             else if (line.rfind("VmRSS:", 0) == 0)
             {
-              std::stringstream ss(line.substr(7));
-              ss >> info.memory_kb;
+              sscanf(line.c_str(), "VmRSS: %lld", &info.memory_kb);
             }
           }
         }
@@ -572,102 +583,132 @@ std::vector<ProcessInfo> ProcessManager::get_processes()
           info.user = get_user_from_uid(uid);
         }
 
-        // Read /proc/[pid]/cmdline for better name and full command
-        std::string cmdline_path = "/proc/" + dir_name + "/cmdline";
-        std::ifstream cmdline_file(cmdline_path);
-        if (cmdline_file.is_open())
+        bool found_in_cache = false;
+        auto cache_it = process_cache.find(pid);
+        if (cache_it != process_cache.end())
         {
-          std::stringstream buffer;
-          buffer << cmdline_file.rdbuf();
-          std::string full_cmd = buffer.str();
-          if (!full_cmd.empty())
+          info.command = cache_it->second.command;
+          info.name = cache_it->second.name;
+          info.is_app = cache_it->second.is_app;
+          found_in_cache = true;
+          if (update_cache)
           {
-            for (char &c : full_cmd)
+            new_cache[pid] = cache_it->second;
+          }
+        }
+
+        if (!found_in_cache)
+        {
+          info.is_app = check_is_app(pid);
+
+          std::string cmdline_path = "/proc/" + dir_name + "/cmdline";
+          int fd_cmd = open(cmdline_path.c_str(), O_RDONLY);
+          if (fd_cmd != -1)
+          {
+            char cmd_buf[4096];
+            ssize_t bytes_read = read(fd_cmd, cmd_buf, sizeof(cmd_buf) - 1);
+            if (bytes_read > 0)
             {
-              if (c == '\0')
-                c = ' ';
+              cmd_buf[bytes_read] = '\0';
+              std::string full_cmd(cmd_buf, bytes_read);
+              for (char &c : full_cmd)
+              {
+                if (c == '\0')
+                  c = ' ';
+              }
+              if (!full_cmd.empty() && full_cmd.back() == ' ')
+                full_cmd.pop_back();
+              info.command = full_cmd;
+
+              std::string cmdline(cmd_buf);
+              if (!cmdline.empty())
+              {
+                size_t pos = cmdline.find_last_of('/');
+                std::string cmd_name = (pos != std::string::npos) ? cmdline.substr(pos + 1) : cmdline;
+
+                if (cmd_name == "exe" || cmd_name == "AppRun" || cmd_name == "chrome_crashpad_handler" || info.name == "Main" ||
+                    info.name == "Worker" || info.name == "Zygote")
+                {
+                  if (pos != std::string::npos && pos > 0)
+                  {
+                    size_t parent_pos = cmdline.find_last_of('/', pos - 1);
+                    if (parent_pos != std::string::npos)
+                    {
+                      std::string parent_dir = cmdline.substr(parent_pos + 1, pos - parent_pos - 1);
+                      if (!parent_dir.empty() && parent_dir != "bin" && parent_dir != "usr")
+                      {
+                        cmd_name = parent_dir;
+                      }
+                    }
+                  }
+                }
+
+                if (info.name == "exe" || info.name == "Main" || info.name == "Worker" || cmd_name.rfind(info.name, 0) == 0)
+                {
+                  info.name = cmd_name;
+                }
+              }
             }
-            // remove trailing space
-            if (full_cmd.back() == ' ')
-              full_cmd.pop_back();
-            info.command = full_cmd;
+            close(fd_cmd);
           }
 
-          std::string cmdline;
-          cmdline_file.clear();
-          cmdline_file.seekg(0);
-          std::getline(cmdline_file, cmdline, '\0');
-          if (!cmdline.empty())
+          if (update_cache)
           {
-            size_t pos = cmdline.find_last_of('/');
-            std::string cmd_name = (pos != std::string::npos) ? cmdline.substr(pos + 1) : cmdline;
+            CachedProcessData new_cache_data;
+            new_cache_data.command = info.command;
+            new_cache_data.name = info.name;
+            new_cache_data.is_app = info.is_app;
+            new_cache[pid] = new_cache_data;
+          }
+        }
 
-            // If the name is generic like "exe" or "AppRun", try to use the
-            // parent directory name
-            if (cmd_name == "exe" || cmd_name == "AppRun" || cmd_name == "chrome_crashpad_handler" || info.name == "Main" ||
-                info.name == "Worker" || info.name == "Zygote")
+        std::string stat_path = "/proc/" + dir_name + "/stat";
+        int fd_stat = open(stat_path.c_str(), O_RDONLY);
+        if (fd_stat != -1)
+        {
+          ssize_t bytes_read = read(fd_stat, stat_buf, sizeof(stat_buf) - 1);
+          if (bytes_read > 0)
+          {
+            stat_buf[bytes_read] = '\0';
+            char *rp = strrchr(stat_buf, ')');
+            if (rp != nullptr)
             {
-              if (pos != std::string::npos && pos > 0)
+              char dummy_state;
+              unsigned long long utime, stime;
+
+              char *rest = rp + 2;
+
+              int dummy_ppid;
+              unsigned long dummy_uval;
+
+              int items =
+                  sscanf(rest, "%c %d %d %d %d %d %lu %lu %lu %lu %lu %llu %llu", &dummy_state, &info.ppid, &dummy_ppid, &dummy_ppid,
+                         &dummy_ppid, &dummy_ppid, &dummy_uval, &dummy_uval, &dummy_uval, &dummy_uval, &dummy_uval, &utime, &stime);
+
+              if (items == 13)
               {
-                size_t parent_pos = cmdline.find_last_of('/', pos - 1);
-                if (parent_pos != std::string::npos)
+                current_cpu_map[pid] = { utime, stime };
+
+                if (!first_process_run)
                 {
-                  std::string parent_dir = cmdline.substr(parent_pos + 1, pos - parent_pos - 1);
-                  if (!parent_dir.empty() && parent_dir != "bin" && parent_dir != "usr")
+                  auto prev_it = prev_process_cpu.find(pid);
+                  if (prev_it != prev_process_cpu.end())
                   {
-                    cmd_name = parent_dir;
+                    double uptime_diff = uptime - prev_uptime;
+                    if (uptime_diff > 0)
+                    {
+                      unsigned long long prev_utime = prev_it->second.utime;
+                      unsigned long long prev_stime = prev_it->second.stime;
+
+                      unsigned long long total_time_diff = (utime + stime) - (prev_utime + prev_stime);
+                      info.cpu_usage = (100.0 * ((double)total_time_diff / hertz) / uptime_diff) / get_cpu_threads_count();
+                    }
                   }
                 }
               }
             }
-
-            // Only overwrite info.name if the new name is longer and starts
-            // with the old name (this restores untruncated names without
-            // breaking descriptive thread names like "Web Content") Or if the
-            // original name was literally "exe"
-            if (info.name == "exe" || info.name == "Main" || info.name == "Worker" || cmd_name.rfind(info.name, 0) == 0)
-            {
-              info.name = cmd_name;
-            }
           }
-        }
-
-        // Read /proc/[pid]/stat for CPU usage
-        std::string stat_path = "/proc/" + dir_name + "/stat";
-        std::ifstream stat_file(stat_path);
-        if (stat_file.is_open())
-        {
-          std::string line;
-          if (std::getline(stat_file, line))
-          {
-            size_t rp = line.find_last_of(')');
-            if (rp != std::string::npos)
-            {
-              std::string rest = line.substr(rp + 2);
-              std::stringstream ss(rest);
-              std::string dummy, dummy_state;
-              unsigned long long utime, stime;
-              ss >> dummy_state >> info.ppid;
-              for (int i = 0; i < 9; ++i)
-                ss >> dummy;
-              ss >> utime >> stime;
-
-              current_cpu_map[pid] = { utime, stime };
-
-              if (!first_process_run && prev_process_cpu.count(pid) > 0)
-              {
-                double uptime_diff = uptime - prev_uptime;
-                if (uptime_diff > 0)
-                {
-                  unsigned long long prev_utime = prev_process_cpu[pid].utime;
-                  unsigned long long prev_stime = prev_process_cpu[pid].stime;
-
-                  unsigned long long total_time_diff = (utime + stime) - (prev_utime + prev_stime);
-                  info.cpu_usage = (100.0 * ((double)total_time_diff / hertz) / uptime_diff) / get_cpu_threads_count();
-                }
-              }
-            }
-          }
+          close(fd_stat);
         }
 
         current_processes.push_back(info);
@@ -676,7 +717,28 @@ std::vector<ProcessInfo> ProcessManager::get_processes()
   }
   closedir(dir);
 
-  prev_process_cpu = current_cpu_map;
+  if (update_cache)
+  {
+    process_cache = std::move(new_cache);
+  }
+  else
+  {
+    // If we didn't update cache this frame, we need to retain process_cache for the next frame
+    // We prune dead pids from it based on current pids
+    for (auto it = process_cache.begin(); it != process_cache.end();)
+    {
+      if (current_cpu_map.find(it->first) == current_cpu_map.end())
+      {
+        it = process_cache.erase(it);
+      }
+      else
+      {
+        ++it;
+      }
+    }
+  }
+
+  prev_process_cpu = std::move(current_cpu_map);
   prev_uptime = uptime;
   first_process_run = false;
 
