@@ -6,7 +6,7 @@ A modern, fast, and lightweight Task Manager for Linux, built natively with C++ 
 
 - **Process Management**: View all running processes with their CPU & Memory usage. Sort them instantly by Name or CPU usage by tapping the `[f]` keybind.
 - **Interactive Performance Graphs**: 
-  - Beautiful real-time line charts drawn natively in the terminal.
+  - Real-time line charts drawn natively in the terminal.
   - Monitors global CPU utilization across all cores.
   - Detailed Memory and Disk usage panes.
   - Live Network monitoring with Upload and Download speeds.
@@ -74,12 +74,6 @@ Or for full features:
 ```bash
 sudo /usr/local/bin/run_nabdhu
 ```
-
-## 🧹 Code Quality and Formatting
-
-The project ships with strict code formatting configurations.
-- Run `clang-format` based on the `.clang-format` (LLVM Style).
-- Static analysis is enabled via the configured `.clang-tidy` which ensures high code quality while intelligently ignoring UI-framework specific macros.
 
 ## ⌨️ Controls
 
