@@ -1,4 +1,5 @@
 #include "ui.h"
+
 #include <fcntl.h>
 #include <unistd.h>
 
@@ -27,6 +28,8 @@ int enforce_single_instance()
 
 int main(int argc, char *argv[])
 {
+  setenv("GDK_BACKEND", "x11", 1);
+
   if (enforce_single_instance() < 0)
   {
     return 1;

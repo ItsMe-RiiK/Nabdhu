@@ -1,4 +1,6 @@
 #include "process_manager.h"
+
+#include <algorithm>
 #include <dirent.h>
 #include <fstream>
 #include <iostream>
@@ -101,50 +103,81 @@ std::string ProcessManager::translate_state(const std::string &state_char)
   return state_char;
 }
 
-GlobalCpuData ProcessManager::read_global_cpu_data()
+std::vector<GlobalCpuData> ProcessManager::read_all_cpu_data()
 {
-  GlobalCpuData data;
+  std::vector<GlobalCpuData> data_list;
   std::ifstream file("/proc/stat");
   if (file.is_open())
   {
     std::string line;
-    if (std::getline(file, line))
+    while (std::getline(file, line))
     {
       if (line.substr(0, 3) == "cpu")
       {
-        std::stringstream ss(line.substr(3));
-        ss >> data.user >> data.nice >> data.system >> data.idle >> data.iowait >> data.irq >> data.softirq >> data.steal;
+        GlobalCpuData data;
+        std::stringstream ss(line);
+        std::string cpu_label;
+        ss >> cpu_label >> data.user >> data.nice >> data.system >> data.idle >> data.iowait >> data.irq >> data.softirq >> data.steal;
+        data_list.push_back(data);
+      }
+      else
+      {
+        break; // cpu lines are always at the top
       }
     }
   }
-  return data;
+  return data_list;
 }
 
 double ProcessManager::get_global_cpu_usage()
 {
-  GlobalCpuData current_cpu = read_global_cpu_data();
-  double usage = 0.0;
+  std::vector<GlobalCpuData> current_cpu_data = read_all_cpu_data();
+  if (current_cpu_data.empty())
+    return 0.0;
 
-  if (!first_global_cpu_run)
+  double global_usage = 0.0;
+  std::vector<double> core_usages;
+
+  if (!first_global_cpu_run && prev_cpu_data.size() == current_cpu_data.size())
   {
-    unsigned long long prev_total = prev_global_cpu.total();
-    unsigned long long curr_total = current_cpu.total();
-    unsigned long long prev_idle = prev_global_cpu.idle_all();
-    unsigned long long curr_idle = current_cpu.idle_all();
-
-    unsigned long long total_diff = curr_total - prev_total;
-    unsigned long long idle_diff = curr_idle - prev_idle;
-
-    if (total_diff > 0)
+    for (size_t i = 0; i < current_cpu_data.size(); ++i)
     {
-      usage = 100.0 * (total_diff - idle_diff) / (double)total_diff;
+      unsigned long long prev_total = prev_cpu_data[i].total();
+      unsigned long long curr_total = current_cpu_data[i].total();
+      unsigned long long prev_idle = prev_cpu_data[i].idle_all();
+      unsigned long long curr_idle = current_cpu_data[i].idle_all();
+
+      unsigned long long total_diff = curr_total - prev_total;
+      unsigned long long idle_diff = curr_idle - prev_idle;
+
+      double usage = 0.0;
+      if (total_diff > 0)
+      {
+        usage = 100.0 * (total_diff - idle_diff) / (double)total_diff;
+      }
+
+      if (i == 0)
+      {
+        global_usage = usage;
+      }
+      else
+      {
+        core_usages.push_back(usage);
+      }
     }
   }
 
-  prev_global_cpu = current_cpu;
+  prev_cpu_data = current_cpu_data;
+  last_global_usage = global_usage;
+  last_core_usages = core_usages;
   first_global_cpu_run = false;
 
-  return usage;
+  return last_global_usage;
+}
+
+std::vector<double> ProcessManager::get_core_cpu_usage()
+{
+  return last_core_usages;
 }
 
 GlobalMemData ProcessManager::get_global_memory()
@@ -273,6 +306,135 @@ MemHardwareInfo ProcessManager::get_memory_hardware_info()
   return info;
 }
 
+CpuHardwareInfo ProcessManager::get_cpu_hardware_info()
+{
+  CpuHardwareInfo info;
+  info.model_name = "Unknown";
+  info.speed = "0.0 GHz";
+  info.load_avg[0] = info.load_avg[1] = info.load_avg[2] = 0.0;
+
+  std::ifstream loadavg_file("/proc/loadavg");
+  if (loadavg_file.is_open())
+  {
+    loadavg_file >> info.load_avg[0] >> info.load_avg[1] >> info.load_avg[2];
+  }
+
+  std::ifstream cpuinfo_file("/proc/cpuinfo");
+  if (cpuinfo_file.is_open())
+  {
+    std::string line;
+    while (std::getline(cpuinfo_file, line))
+    {
+      if (line.find("model name") != std::string::npos && info.model_name == "Unknown")
+      {
+        size_t pos = line.find(":");
+        if (pos != std::string::npos)
+        {
+          std::string val = line.substr(pos + 1);
+          val.erase(0, val.find_first_not_of(" \t"));
+
+          // Extract static speed from model name
+          size_t at_pos = val.find("@ ");
+          if (at_pos != std::string::npos)
+          {
+            info.speed = val.substr(at_pos + 2);
+          }
+          else
+          {
+            info.speed = ""; // Fallback
+          }
+
+          // Simplify Intel core names
+          size_t ix = val.find("i3-");
+          if (ix == std::string::npos)
+            ix = val.find("i5-");
+          if (ix == std::string::npos)
+            ix = val.find("i7-");
+          if (ix == std::string::npos)
+            ix = val.find("i9-");
+          if (ix != std::string::npos)
+          {
+            size_t space_pos = val.find(" ", ix);
+            if (space_pos != std::string::npos)
+              val = val.substr(ix, space_pos - ix);
+            else
+              val = val.substr(ix);
+          }
+          else
+          {
+            // Simplify AMD Ryzen names
+            size_t rx = val.find("Ryzen");
+            if (rx != std::string::npos)
+            {
+              // Try to grab "Ryzen X XXXXX"
+              int spaces = 0;
+              size_t end_pos = rx;
+              while (end_pos < val.length() && spaces < 3)
+              {
+                if (val[end_pos] == ' ')
+                  spaces++;
+                if (spaces < 3)
+                  end_pos++;
+              }
+              val = val.substr(rx, end_pos - rx);
+            }
+          }
+
+          info.model_name = val;
+        }
+      }
+    }
+  }
+
+  for (int i = 0; i < 10; ++i)
+  {
+    std::string hwmon_path = "/sys/class/hwmon/hwmon" + std::to_string(i);
+    DIR *dir = opendir(hwmon_path.c_str());
+    if (dir)
+    {
+      struct dirent *ent;
+      while ((ent = readdir(dir)) != nullptr)
+      {
+        std::string name(ent->d_name);
+        if (name.find("temp") == 0 && name.find("_input") != std::string::npos)
+        {
+          std::ifstream temp_file(hwmon_path + "/" + name);
+          if (temp_file.is_open())
+          {
+            int millidegrees;
+            if (temp_file >> millidegrees)
+            {
+              info.core_temps.push_back(millidegrees / 1000);
+            }
+          }
+        }
+      }
+      closedir(dir);
+    }
+  }
+
+  if (info.core_temps.empty())
+  {
+    for (int i = 0; i < 10; ++i)
+    {
+      std::string thermal_path = "/sys/class/thermal/thermal_zone" + std::to_string(i) + "/temp";
+      std::ifstream temp_file(thermal_path);
+      if (temp_file.is_open())
+      {
+        int millidegrees;
+        if (temp_file >> millidegrees)
+        {
+          info.core_temps.push_back(millidegrees / 1000);
+        }
+      }
+    }
+  }
+
+  std::sort(info.core_temps.begin(), info.core_temps.end(), std::greater<int>());
+
+  return info;
+}
+
 int ProcessManager::get_cpu_threads_count()
 {
   int count = 0;
@@ -392,6 +554,11 @@ std::vector<ProcessInfo> ProcessManager::get_processes()
               std::stringstream ss(line.substr(5));
               ss >> info.ppid;
             }
+            else if (line.rfind("Threads:", 0) == 0)
+            {
+              std::stringstream ss(line.substr(8));
+              ss >> info.threads;
+            }
             else if (line.rfind("VmRSS:", 0) == 0)
             {
               std::stringstream ss(line.substr(7));
@@ -405,12 +572,30 @@ std::vector<ProcessInfo> ProcessManager::get_processes()
           info.user = get_user_from_uid(uid);
         }
 
-        // Read /proc/[pid]/cmdline for better name
+        // Read /proc/[pid]/cmdline for better name and full command
         std::string cmdline_path = "/proc/" + dir_name + "/cmdline";
         std::ifstream cmdline_file(cmdline_path);
         if (cmdline_file.is_open())
         {
+          std::stringstream buffer;
+          buffer << cmdline_file.rdbuf();
+          std::string full_cmd = buffer.str();
+          if (!full_cmd.empty())
+          {
+            for (char &c : full_cmd)
+            {
+              if (c == '\0')
+                c = ' ';
+            }
+            // remove trailing space
+            if (full_cmd.back() == ' ')
+              full_cmd.pop_back();
+            info.command = full_cmd;
+          }
+
           std::string cmdline;
+          cmdline_file.clear();
+          cmdline_file.seekg(0);
           std::getline(cmdline_file, cmdline, '\0');
           if (!cmdline.empty())
           {

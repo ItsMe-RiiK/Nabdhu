@@ -1,9 +1,7 @@
 .cache/
-assets/
 build/
 obj/
-resource/
-taskmanager
+nabdhu
 compile_flags.txt
-run_taskmanager
+run_nabdhu
 .clang-tidy

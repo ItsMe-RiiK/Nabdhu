@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+version=0.1
+Name=Nabdhu
+GenericName=System Monitor
+Comment=Manage and monitor system processes and services
+Icon=nabdhu
+Exec=gnome-terminal --class="Nabdhu" --title="Nabdhu" -- /usr/local/bin/run_nabdhu
+Terminal=false
+Categories=System;Monitor;ConsoleOnly;
+StartupWMClass=Nabdhu
+Keywords=system;process;task;manager

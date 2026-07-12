@@ -1,0 +1,56 @@
+name: Release Nabdhu
+
+on:
+  push:
+    tags:
+      - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake dmidecode policykit-1 xdotool x11-utils
+
+      - name: Configure CMake
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build Application
+        run: cmake --build build --config Release -j$(nproc)
+
+      - name: Package Nabdhu
+        run: |
+          mkdir -p release_package
+          cp build/nabdhu release_package/
+          cp assets/run_nabdhu.sh release_package/run_nabdhu
+          cp assets/nabdhu.desktop release_package/
+          cp resource/NabdhuRedIco.png release_package/nabdhu.png
+          cat << 'EOF' > release_package/install.sh
+          #!/bin/bash
+          if [ "$EUID" -ne 0 ]; then echo "Please run with sudo"; exit 1; fi
+          cp nabdhu /usr/local/bin/
+          cp run_nabdhu /usr/local/bin/
+          mkdir -p /usr/local/share/icons/hicolor/512x512/apps/
+          mkdir -p /usr/local/share/applications/
+          cp nabdhu.png /usr/local/share/icons/hicolor/512x512/apps/
+          cp nabdhu.desktop /usr/local/share/applications/
+          update-desktop-database /usr/local/share/applications/ || true
+          echo "Nabdhu installed successfully!"
+          EOF
+          cd release_package
+          chmod +x nabdhu run_nabdhu install.sh
+          tar -czvf ../nabdhu-linux-x86_64.tar.gz *
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: nabdhu-linux-x86_64.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

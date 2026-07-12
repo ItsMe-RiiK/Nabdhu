@@ -7,8 +7,10 @@ struct ProcessInfo
 {
   int pid;
   int ppid;
+  int threads;
   std::string user;
   std::string name;
+  std::string command;
   std::string state;
   long long memory_kb;
   double cpu_usage;
@@ -49,6 +51,14 @@ struct MemHardwareInfo
   int slots_total = 0;
 };
 
+struct CpuHardwareInfo
+{
+  std::string model_name;
+  std::string speed;
+  double load_avg[3];
+  std::vector<int> core_temps;
+};
+
 class ProcessManager
 {
 public:
@@ -59,8 +69,10 @@ public:
   static bool kill_process(int pid);
 
   double get_global_cpu_usage();
+  std::vector<double> get_core_cpu_usage();
   static GlobalMemData get_global_memory();
   static MemHardwareInfo get_memory_hardware_info();
+  static CpuHardwareInfo get_cpu_hardware_info();
 
   long get_system_uptime();
   static int get_cpu_threads_count();
@@ -77,7 +89,9 @@ private:
   std::map<int, CpuData> prev_process_cpu;
   double prev_uptime;
 
-  GlobalCpuData prev_global_cpu;
+  std::vector<GlobalCpuData> prev_cpu_data;
+  std::vector<double> last_core_usages;
+  double last_global_usage;
   bool first_global_cpu_run;
   bool first_process_run;
 
@@ -85,6 +99,6 @@ private:
   long get_hertz() const;
   static std::string get_user_from_uid(int uid);
   static std::string translate_state(const std::string &state_char);
-  static GlobalCpuData read_global_cpu_data();
+  static std::vector<GlobalCpuData> read_all_cpu_data();
   static bool check_is_app(int pid);
 };
