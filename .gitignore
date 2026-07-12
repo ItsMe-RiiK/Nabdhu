@@ -4,4 +4,3 @@ obj/
 nabdhu
 compile_flags.txt
 run_nabdhu
-.clang-tidy
