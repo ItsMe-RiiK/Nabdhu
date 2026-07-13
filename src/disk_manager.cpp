@@ -1,15 +1,26 @@
 #include "disk_manager.h"
 
+#include <chrono>
 #include <fstream>
 #include <sstream>
 #include <sys/statvfs.h>
 
 std::vector<DiskInfo> DiskManager::get_disk_info()
 {
+  static std::vector<DiskInfo> cached_disks;
+  static auto last_disk_time = std::chrono::steady_clock::now();
+  static bool first_run = true;
+  auto now = std::chrono::steady_clock::now();
+  
+  if (!first_run && std::chrono::duration_cast<std::chrono::seconds>(now - last_disk_time).count() < 15) {
+      return cached_disks;
+  }
+  first_run = false;
+
   std::vector<DiskInfo> disks;
   std::ifstream file("/proc/mounts");
   if (!file.is_open())
-    return disks;
+    return cached_disks;
 
   std::string line;
   while (std::getline(file, line))
@@ -54,5 +65,8 @@ std::vector<DiskInfo> DiskManager::get_disk_info()
       }
     }
   }
+  
+  cached_disks = disks;
+  last_disk_time = now;
   return disks;
 }

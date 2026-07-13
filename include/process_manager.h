@@ -7,6 +7,7 @@ struct CachedProcessData
 {
   std::string command;
   std::string name;
+  std::string user;
   bool is_app;
 };
 
@@ -14,13 +15,14 @@ struct ProcessInfo
 {
   int pid;
   int ppid;
-  int threads;
-  std::string user;
   std::string name;
   std::string command;
+  std::string user;
   std::string state;
+  int threads;
   long long memory_kb;
   double cpu_usage;
+  unsigned long long cumulative_cpu_time;
   bool is_app;
 };
 
@@ -62,8 +64,26 @@ struct CpuHardwareInfo
 {
   std::string model_name;
   std::string speed;
+  std::string real_speed;
   double load_avg[3];
   std::vector<int> core_temps;
+};
+
+struct BatteryInfo
+{
+  bool present = false;
+  int capacity = 0; // 0-100%
+  std::string status; // Charging, Discharging, Full
+};
+
+struct GpuInfo
+{
+  std::string name;
+  double utilization = 0.0;
+  double memory_used_mb = 0.0;
+  double memory_total_mb = 0.0;
+  double temperature = 0.0;
+  double power_watts = 0.0;
 };
 
 class ProcessManager
@@ -80,6 +100,8 @@ public:
   static GlobalMemData get_global_memory();
   static MemHardwareInfo get_memory_hardware_info();
   static CpuHardwareInfo get_cpu_hardware_info();
+  static BatteryInfo get_battery_info();
+  static std::vector<GpuInfo> get_gpu_info();
 
   long get_system_uptime();
   static int get_cpu_threads_count();
@@ -107,7 +129,7 @@ private:
   static double get_uptime_internal();
   long get_hertz() const;
   static std::string get_user_from_uid(int uid);
-  static std::string translate_state(const std::string &state_char);
+  static std::string translate_state(char state_char);
   static std::vector<GlobalCpuData> read_all_cpu_data();
   static bool check_is_app(int pid);
 };
