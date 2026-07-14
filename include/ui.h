@@ -1,13 +1,12 @@
-#include <chrono>
 #pragma once
 #include "disk_manager.h"
 #include "network_manager.h"
 #include "process_manager.h"
-#include "service_manager.h"
 #include "renderer.h"
+#include "service_manager.h"
 
-#include <vector>
 #include <string>
+#include <vector>
 
 class UIManager
 {
@@ -34,7 +33,11 @@ private:
   std::vector<double> net_tx_history;
   int max_history = 50;
 
-  enum class SortBy { CPU, Name };
+  enum class SortBy
+  {
+    CPU,
+    Name
+  };
   SortBy current_sort = SortBy::CPU;
 
   bool running = true;
@@ -53,8 +56,8 @@ private:
 
   std::vector<ProcessInfo> raw_procs;
   std::vector<ServiceInfo> raw_svcs;
-  std::vector<const ProcessInfo*> filtered_procs;
-  std::vector<const ServiceInfo*> filtered_svcs;
+  std::vector<const ProcessInfo *> filtered_procs;
+  std::vector<const ServiceInfo *> filtered_svcs;
 
   void apply_filter();
 
@@ -62,8 +65,7 @@ private:
   int uptime_s = 0;
   int refresh_rate_ms = 2000;
   int refresh_warn_frames = 0;
-  std::chrono::steady_clock::time_point last_hotkey_time;
-  
+
   BatteryInfo battery_info;
   std::vector<GpuInfo> gpu_infos;
 

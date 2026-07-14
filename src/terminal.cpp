@@ -1,32 +1,37 @@
 #include "terminal.h"
 
+#include <iostream>
+#include <signal.h>
+#include <sys/ioctl.h>
 #include <termios.h>
 #include <unistd.h>
-#include <sys/ioctl.h>
-#include <signal.h>
-#include <iostream>
 
-namespace terminal {
+namespace terminal
+{
 
-namespace {
+  namespace
+  {
     struct termios original_termios;
     bool resized = false;
     int current_width = 0;
     int current_height = 0;
 
-    void sigwinch_handler(int) {
-        resized = true;
+    void sigwinch_handler(int)
+    {
+      resized = true;
     }
 
-    void update_size() {
-        struct winsize w;
-        ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
-        current_width = w.ws_col;
-        current_height = w.ws_row;
+    void update_size()
+    {
+      struct winsize w;
+      ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+      current_width = w.ws_col;
+      current_height = w.ws_row;
     }
-}
+  } // namespace
 
-void init() {
+  void init()
+  {
     tcgetattr(STDIN_FILENO, &original_termios);
     struct termios raw = original_termios;
     raw.c_lflag &= ~(ECHO | ICANON | IEXTEN);
@@ -45,31 +50,38 @@ void init() {
     sigaction(SIGWINCH, &sa, NULL);
 
     update_size();
-}
+  }
 
-void restore() {
+  void restore()
+  {
     // Exit alternate screen, show cursor, disable mouse tracking
     std::cout << "\x1b[?1049l\x1b[?25h\x1b[?1002l\x1b[?1006l\x1b[?1015l" << std::flush;
     tcsetattr(STDIN_FILENO, TCSANOW, &original_termios);
-}
+  }
 
-int get_width() {
-    if (resized) update_size();
+  int get_width()
+  {
+    if (resized)
+      update_size();
     return current_width;
-}
+  }
 
-int get_height() {
-    if (resized) update_size();
+  int get_height()
+  {
+    if (resized)
+      update_size();
     return current_height;
-}
+  }
 
-bool is_resized() {
+  bool is_resized()
+  {
     return resized;
-}
+  }
 
-void clear_resized_flag() {
+  void clear_resized_flag()
+  {
     resized = false;
     update_size();
-}
+  }
 
 } // namespace terminal

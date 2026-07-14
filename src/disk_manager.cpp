@@ -11,9 +11,10 @@ std::vector<DiskInfo> DiskManager::get_disk_info()
   static auto last_disk_time = std::chrono::steady_clock::now();
   static bool first_run = true;
   auto now = std::chrono::steady_clock::now();
-  
-  if (!first_run && std::chrono::duration_cast<std::chrono::seconds>(now - last_disk_time).count() < 15) {
-      return cached_disks;
+
+  if (!first_run && std::chrono::duration_cast<std::chrono::seconds>(now - last_disk_time).count() < 15)
+  {
+    return cached_disks;
   }
   first_run = false;
 
@@ -36,6 +37,22 @@ std::vector<DiskInfo> DiskManager::get_disk_info()
       if (statvfs(mount_point.c_str(), &stat) == 0)
       {
         DiskInfo info;
+        if (mount_point == "/")
+        {
+          info.name = "root";
+        }
+        else
+        {
+          size_t last_slash = mount_point.find_last_of('/');
+          if (last_slash != std::string::npos && last_slash < mount_point.length() - 1)
+          {
+            info.name = mount_point.substr(last_slash + 1);
+          }
+          else
+          {
+            info.name = mount_point;
+          }
+        }
         info.mount_point = mount_point;
         info.total_bytes = stat.f_blocks * stat.f_frsize;
         info.free_bytes = stat.f_bfree * stat.f_frsize;
@@ -65,7 +82,7 @@ std::vector<DiskInfo> DiskManager::get_disk_info()
       }
     }
   }
-  
+
   cached_disks = disks;
   last_disk_time = now;
   return disks;

@@ -182,7 +182,7 @@ void UIManager::draw()
   auto time_t = std::chrono::system_clock::to_time_t(now);
   struct tm *tm_info = localtime(&time_t);
   char time_buf[64];
-  strftime(time_buf, sizeof(time_buf), "Time %H:%M:%S", tm_info);
+  strftime(time_buf, sizeof(time_buf), "%H:%M:%S", tm_info);
   std::string time_txt = time_buf;
 
   std::string bat_txt = "";
@@ -448,18 +448,35 @@ void UIManager::draw()
         for (int i = 0; i < d_list; i++)
         {
           int dy = y_cursor + 1 + (i * 3);
-          render.draw_text(d_x + 2, dy, disks[i].mount_point, 37);
+          std::string d_title = disks[i].name + " (" + disks[i].mount_point + ")";
+          render.draw_text(d_x + 2, dy, d_title, 37, 49, false, false, d_w - 12);
           render.draw_text(d_x + d_w - 10, dy, format_bytes(disks[i].total_bytes), 37);
 
           double used_pct = (double)disks[i].used_bytes / disks[i].total_bytes;
-          render.draw_text(d_x + 2, dy + 1, fmt::format("U: {:.1f}%", used_pct * 100.0), 37);
-          if (d_w > 12)
-            render.draw_block_gauge(d_x + 9, dy + 1, d_w - 11, used_pct, renderer::Gradient::DarkRedToRed, 31);
+          if (d_w > 25)
+          {
+            render.draw_text(d_x + 2, dy + 1, fmt::format("Used: {:.1f}%", used_pct * 100.0), 37);
+            render.draw_block_gauge(d_x + 15, dy + 1, d_w - 17, used_pct, renderer::Gradient::DarkRedToRed, 31);
+          }
+          else
+          {
+            render.draw_text(d_x + 2, dy + 1, fmt::format("U: {:.1f}%", used_pct * 100.0), 37);
+            if (d_w > 12)
+              render.draw_block_gauge(d_x + 10, dy + 1, d_w - 12, used_pct, renderer::Gradient::DarkRedToRed, 31);
+          }
 
           double free_pct = (double)(disks[i].total_bytes - disks[i].used_bytes) / disks[i].total_bytes;
-          render.draw_text(d_x + 2, dy + 2, fmt::format("F: {:.1f}%", free_pct * 100.0), 37);
-          if (d_w > 12)
-            render.draw_block_gauge(d_x + 9, dy + 2, d_w - 11, free_pct, renderer::Gradient::DarkGreenToGreen, 32);
+          if (d_w > 25)
+          {
+            render.draw_text(d_x + 2, dy + 2, fmt::format("Free: {:.1f}%", free_pct * 100.0), 37);
+            render.draw_block_gauge(d_x + 15, dy + 2, d_w - 17, free_pct, renderer::Gradient::DarkGreenToGreen, 32);
+          }
+          else
+          {
+            render.draw_text(d_x + 2, dy + 2, fmt::format("F: {:.1f}%", free_pct * 100.0), 37);
+            if (d_w > 12)
+              render.draw_block_gauge(d_x + 10, dy + 2, d_w - 12, free_pct, renderer::Gradient::DarkGreenToGreen, 32);
+          }
         }
       }
     }
@@ -580,8 +597,8 @@ void UIManager::draw()
       {
         int idx = i + proc_scroll;
         const auto p = filtered_procs[idx];
-        std::string formatted = fmt::format(" {:<5d}   {:<{}.{}}   {:<7.7}   {:<7.7}   {:5.1f}%", p->pid, p->name, prog_len, prog_len, p->user,
-                                            format_bytes(p->memory_kb * 1024), p->cpu_usage);
+        std::string formatted = fmt::format(" {:<5d}   {:<{}.{}}   {:<7.7}   {:<7.7}   {:5.1f}%", p->pid, p->name, prog_len, prog_len,
+                                            p->user, format_bytes(p->memory_kb * 1024), p->cpu_usage);
         if ((int)formatted.length() < target_len)
           formatted.append(target_len - formatted.length(), ' ');
 

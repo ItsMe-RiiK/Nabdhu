@@ -62,19 +62,31 @@ std::string ProcessManager::translate_state(char state_char)
 {
   switch (state_char)
   {
-    case 'R': return "Running";
-    case 'S': return "Sleeping";
-    case 'D': return "Disk Sleep";
-    case 'Z': return "Zombie";
-    case 'T': return "Stopped";
-    case 't': return "Tracing Stop";
-    case 'X':
-    case 'x': return "Dead";
-    case 'K': return "Wakekill";
-    case 'W': return "Waking";
-    case 'P': return "Parked";
-    case 'I': return "Idle";
-    default: return std::string(1, state_char);
+  case 'R':
+    return "Running";
+  case 'S':
+    return "Sleeping";
+  case 'D':
+    return "Disk Sleep";
+  case 'Z':
+    return "Zombie";
+  case 'T':
+    return "Stopped";
+  case 't':
+    return "Tracing Stop";
+  case 'X':
+  case 'x':
+    return "Dead";
+  case 'K':
+    return "Wakekill";
+  case 'W':
+    return "Waking";
+  case 'P':
+    return "Parked";
+  case 'I':
+    return "Idle";
+  default:
+    return std::string(1, state_char);
   }
 }
 
@@ -159,7 +171,8 @@ GlobalMemData ProcessManager::get_global_memory()
 {
   GlobalMemData data;
   int fd = open("/proc/meminfo", O_RDONLY);
-  if (fd == -1) return data;
+  if (fd == -1)
+    return data;
   char buf[4096];
   ssize_t bytes = read(fd, buf, sizeof(buf) - 1);
   close(fd);
@@ -169,15 +182,23 @@ GlobalMemData ProcessManager::get_global_memory()
     char *ptr = buf;
     while (*ptr)
     {
-      if (strncmp(ptr, "MemTotal:", 9) == 0) data.total_kb = atoll(ptr + 9);
-      else if (strncmp(ptr, "MemFree:", 8) == 0) data.free_kb = atoll(ptr + 8);
-      else if (strncmp(ptr, "MemAvailable:", 13) == 0) data.available_kb = atoll(ptr + 13);
-      else if (strncmp(ptr, "Cached:", 7) == 0) data.cached_kb = atoll(ptr + 7);
-      else if (strncmp(ptr, "SwapTotal:", 10) == 0) data.swap_total_kb = atoll(ptr + 10);
-      else if (strncmp(ptr, "SwapFree:", 9) == 0) data.swap_free_kb = atoll(ptr + 9);
+      if (strncmp(ptr, "MemTotal:", 9) == 0)
+        data.total_kb = atoll(ptr + 9);
+      else if (strncmp(ptr, "MemFree:", 8) == 0)
+        data.free_kb = atoll(ptr + 8);
+      else if (strncmp(ptr, "MemAvailable:", 13) == 0)
+        data.available_kb = atoll(ptr + 13);
+      else if (strncmp(ptr, "Cached:", 7) == 0)
+        data.cached_kb = atoll(ptr + 7);
+      else if (strncmp(ptr, "SwapTotal:", 10) == 0)
+        data.swap_total_kb = atoll(ptr + 10);
+      else if (strncmp(ptr, "SwapFree:", 9) == 0)
+        data.swap_free_kb = atoll(ptr + 9);
 
-      while (*ptr && *ptr != '\n') ptr++;
-      if (*ptr == '\n') ptr++;
+      while (*ptr && *ptr != '\n')
+        ptr++;
+      if (*ptr == '\n')
+        ptr++;
     }
   }
   return data;
@@ -291,107 +312,123 @@ CpuHardwareInfo ProcessManager::get_cpu_hardware_info()
     loadavg_file >> info.load_avg[0] >> info.load_avg[1] >> info.load_avg[2];
   }
 
-  if (!cpu_static_cached) {
-      std::ifstream cpuinfo_file("/proc/cpuinfo");
-      if (cpuinfo_file.is_open())
+  if (!cpu_static_cached)
+  {
+    std::ifstream cpuinfo_file("/proc/cpuinfo");
+    if (cpuinfo_file.is_open())
+    {
+      std::string line;
+      while (std::getline(cpuinfo_file, line))
       {
-        std::string line;
-        while (std::getline(cpuinfo_file, line))
+        if (line.find("model name") != std::string::npos && info.model_name == "Unknown")
         {
-          if (line.find("model name") != std::string::npos && info.model_name == "Unknown")
+          size_t pos = line.find(":");
+          if (pos != std::string::npos)
           {
-            size_t pos = line.find(":");
-            if (pos != std::string::npos)
+            std::string val = line.substr(pos + 1);
+            val.erase(0, val.find_first_not_of(" \t"));
+
+            size_t at_pos = val.find("@ ");
+            if (at_pos != std::string::npos)
             {
-              std::string val = line.substr(pos + 1);
-              val.erase(0, val.find_first_not_of(" \t"));
-    
-              size_t at_pos = val.find("@ ");
-              if (at_pos != std::string::npos)
-              {
-                info.speed = val.substr(at_pos + 2);
-              }
-              else
-              {
-                info.speed = ""; // Fallback
-              }
-    
-              size_t intel_pos = val.find("Intel(R) Core(TM) ");
-              if (intel_pos != std::string::npos)
-              {
-                val.replace(intel_pos, 18, "Intel ");
-                size_t cpu_pos = val.find(" CPU @");
-                if (cpu_pos != std::string::npos)
-                {
-                  val = val.substr(0, cpu_pos);
-                }
-              }
-              else
-              {
-                size_t rx = val.find("Ryzen ");
-                if (rx != std::string::npos)
-                {
-                  size_t end_pos = rx + 6;
-                  while (end_pos < val.length() && (isdigit(val[end_pos]) || val[end_pos] == 'X'))
-                  {
-                      end_pos++;
-                  }
-                  val = val.substr(rx, end_pos - rx);
-                }
-              }
-    
-              info.model_name = val;
+              info.speed = val.substr(at_pos + 2);
             }
+            else
+            {
+              info.speed = ""; // Fallback
+            }
+
+            size_t intel_pos = val.find("Intel(R) Core(TM) ");
+            if (intel_pos != std::string::npos)
+            {
+              val.replace(intel_pos, 18, "Intel ");
+              size_t cpu_pos = val.find(" CPU @");
+              if (cpu_pos != std::string::npos)
+              {
+                val = val.substr(0, cpu_pos);
+              }
+            }
+            else
+            {
+              size_t rx = val.find("Ryzen ");
+              if (rx != std::string::npos)
+              {
+                size_t end_pos = rx + 6;
+                while (end_pos < val.length() && (isdigit(val[end_pos]) || val[end_pos] == 'X'))
+                {
+                  end_pos++;
+                }
+                val = val.substr(rx, end_pos - rx);
+              }
+            }
+
+            info.model_name = val;
           }
         }
       }
-      cached_model = info.model_name;
-      cached_speed = info.speed;
-      cpu_static_cached = true;
+    }
+    cached_model = info.model_name;
+    cached_speed = info.speed;
+    cpu_static_cached = true;
   }
-  
+
   // Real-time speed (throttled)
   static int mhz_counter = 0;
   static std::string cached_real_speed = "";
-  
-  if (++mhz_counter >= 5 || cached_real_speed.empty()) {
-      mhz_counter = 0;
-      int fd = open("/proc/cpuinfo", O_RDONLY);
-      if (fd != -1) {
-          char buf[16384];
-          ssize_t bytes = read(fd, buf, sizeof(buf) - 1);
-          close(fd);
-          if (bytes > 0) {
-              buf[bytes] = '\0';
-              double sum_mhz = 0.0;
-              int count = 0;
-              char *ptr = buf;
-              while (*ptr) {
-                  if (strncmp(ptr, "cpu MHz", 7) == 0) {
-                      while (*ptr && *ptr != ':') ptr++;
-                      if (*ptr == ':') {
-                          ptr++;
-                          sum_mhz += std::atof(ptr);
-                          count++;
-                      }
-                  }
-                  while (*ptr && *ptr != '\n') ptr++;
-                  if (*ptr == '\n') ptr++;
-              }
-              if (count > 0) {
-                  double avg_mhz = sum_mhz / count;
-                  char out_buf[64];
-                  if (avg_mhz >= 1000.0) {
-                      snprintf(out_buf, sizeof(out_buf), "%.2f GHz", avg_mhz / 1000.0);
-                  } else {
-                      snprintf(out_buf, sizeof(out_buf), "%d MHz", (int)avg_mhz);
-                  }
-                  cached_real_speed = out_buf;
-              } else {
-                  cached_real_speed = info.speed;
-              }
+
+  if (++mhz_counter >= 5 || cached_real_speed.empty())
+  {
+    mhz_counter = 0;
+    int fd = open("/proc/cpuinfo", O_RDONLY);
+    if (fd != -1)
+    {
+      char buf[16384];
+      ssize_t bytes = read(fd, buf, sizeof(buf) - 1);
+      close(fd);
+      if (bytes > 0)
+      {
+        buf[bytes] = '\0';
+        double sum_mhz = 0.0;
+        int count = 0;
+        char *ptr = buf;
+        while (*ptr)
+        {
+          if (strncmp(ptr, "cpu MHz", 7) == 0)
+          {
+            while (*ptr && *ptr != ':')
+              ptr++;
+            if (*ptr == ':')
+            {
+              ptr++;
+              sum_mhz += std::atof(ptr);
+              count++;
+            }
           }
+          while (*ptr && *ptr != '\n')
+            ptr++;
+          if (*ptr == '\n')
+            ptr++;
+        }
+        if (count > 0)
+        {
+          double avg_mhz = sum_mhz / count;
+          char out_buf[64];
+          if (avg_mhz >= 1000.0)
+          {
+            snprintf(out_buf, sizeof(out_buf), "%.2f GHz", avg_mhz / 1000.0);
+          }
+          else
+          {
+            snprintf(out_buf, sizeof(out_buf), "%d MHz", (int)avg_mhz);
+          }
+          cached_real_speed = out_buf;
+        }
+        else
+        {
+          cached_real_speed = info.speed;
+        }
       }
+    }
   }
   info.real_speed = cached_real_speed;
 
@@ -400,45 +437,56 @@ CpuHardwareInfo ProcessManager::get_cpu_hardware_info()
   static std::vector<std::string> cached_temp_paths;
   static bool temp_paths_found = false;
 
-  if (!temp_paths_found) {
-      for (int i = 0; i < 10; ++i) {
-          std::string hwmon_path = "/sys/class/hwmon/hwmon" + std::to_string(i);
-          DIR *dir = opendir(hwmon_path.c_str());
-          if (dir) {
-              struct dirent *ent;
-              while ((ent = readdir(dir)) != nullptr) {
-                  std::string name(ent->d_name);
-                  if (name.find("temp") == 0 && name.find("_input") != std::string::npos) {
-                      cached_temp_paths.push_back(hwmon_path + "/" + name);
-                  }
-              }
-              closedir(dir);
+  if (!temp_paths_found)
+  {
+    for (int i = 0; i < 10; ++i)
+    {
+      std::string hwmon_path = "/sys/class/hwmon/hwmon" + std::to_string(i);
+      DIR *dir = opendir(hwmon_path.c_str());
+      if (dir)
+      {
+        struct dirent *ent;
+        while ((ent = readdir(dir)) != nullptr)
+        {
+          std::string name(ent->d_name);
+          if (name.find("temp") == 0 && name.find("_input") != std::string::npos)
+          {
+            cached_temp_paths.push_back(hwmon_path + "/" + name);
           }
+        }
+        closedir(dir);
       }
-      if (cached_temp_paths.empty()) {
-          for (int i = 0; i < 10; ++i) {
-              std::string thermal_path = "/sys/class/thermal/thermal_zone" + std::to_string(i) + "/temp";
-              struct stat st;
-              if (stat(thermal_path.c_str(), &st) == 0) {
-                  cached_temp_paths.push_back(thermal_path);
-              }
-          }
+    }
+    if (cached_temp_paths.empty())
+    {
+      for (int i = 0; i < 10; ++i)
+      {
+        std::string thermal_path = "/sys/class/thermal/thermal_zone" + std::to_string(i) + "/temp";
+        struct stat st;
+        if (stat(thermal_path.c_str(), &st) == 0)
+        {
+          cached_temp_paths.push_back(thermal_path);
+        }
       }
-      temp_paths_found = true;
+    }
+    temp_paths_found = true;
   }
 
   info.core_temps.clear();
-  for (const auto& path : cached_temp_paths) {
-      int fd = open(path.c_str(), O_RDONLY);
-      if (fd != -1) {
-          char buf[32];
-          ssize_t bytes = read(fd, buf, sizeof(buf) - 1);
-          close(fd);
-          if (bytes > 0) {
-              buf[bytes] = '\0';
-              info.core_temps.push_back(std::atoi(buf) / 1000);
-          }
+  for (const auto &path : cached_temp_paths)
+  {
+    int fd = open(path.c_str(), O_RDONLY);
+    if (fd != -1)
+    {
+      char buf[32];
+      ssize_t bytes = read(fd, buf, sizeof(buf) - 1);
+      close(fd);
+      if (bytes > 0)
+      {
+        buf[bytes] = '\0';
+        info.core_temps.push_back(std::atoi(buf) / 1000);
       }
+    }
   }
 
   std::sort(info.core_temps.begin(), info.core_temps.end(), std::greater<int>());
@@ -449,9 +497,11 @@ CpuHardwareInfo ProcessManager::get_cpu_hardware_info()
 int ProcessManager::get_cpu_threads_count()
 {
   static int cached_count = 0;
-  if (cached_count == 0) {
-      cached_count = sysconf(_SC_NPROCESSORS_ONLN);
-      if (cached_count <= 0) cached_count = 1;
+  if (cached_count == 0)
+  {
+    cached_count = sysconf(_SC_NPROCESSORS_ONLN);
+    if (cached_count <= 0)
+      cached_count = 1;
   }
   return cached_count;
 }
@@ -633,43 +683,51 @@ std::vector<ProcessInfo> ProcessManager::get_processes()
             char *rp = strrchr(stat_buf, ')');
             if (rp != nullptr)
             {
-              if (info.name.empty() || info.name == "self" || info.name == "Self" || info.name == "exe") {
-                  char *lp = strchr(stat_buf, '(');
-                  if (lp && lp < rp) {
-                      info.name = std::string(lp + 1, rp - lp - 1);
-                      if (update_cache) {
-                          new_cache[pid].name = info.name;
-                      }
+              if (info.name.empty() || info.name == "self" || info.name == "Self" || info.name == "exe")
+              {
+                char *lp = strchr(stat_buf, '(');
+                if (lp && lp < rp)
+                {
+                  info.name = std::string(lp + 1, rp - lp - 1);
+                  if (update_cache)
+                  {
+                    new_cache[pid].name = info.name;
                   }
+                }
               }
 
-              if (info.name.empty() || info.name == "self" || info.name == "Self" || info.name == "exe") {
-                  if (!info.command.empty()) {
-                      size_t space_pos = info.command.find(' ');
-                      std::string first_cmd = (space_pos != std::string::npos) ? info.command.substr(0, space_pos) : info.command;
-                      size_t slash_pos = first_cmd.find_last_of('/');
-                      if (slash_pos != std::string::npos) first_cmd = first_cmd.substr(slash_pos + 1);
-                      if (!first_cmd.empty()) {
-                          info.name = first_cmd;
-                          if (update_cache) new_cache[pid].name = info.name;
-                      }
+              if (info.name.empty() || info.name == "self" || info.name == "Self" || info.name == "exe")
+              {
+                if (!info.command.empty())
+                {
+                  size_t space_pos = info.command.find(' ');
+                  std::string first_cmd = (space_pos != std::string::npos) ? info.command.substr(0, space_pos) : info.command;
+                  size_t slash_pos = first_cmd.find_last_of('/');
+                  if (slash_pos != std::string::npos)
+                    first_cmd = first_cmd.substr(slash_pos + 1);
+                  if (!first_cmd.empty())
+                  {
+                    info.name = first_cmd;
+                    if (update_cache)
+                      new_cache[pid].name = info.name;
                   }
+                }
               }
-              if (info.name.empty()) {
-                  info.name = "Unknown";
+              if (info.name.empty())
+              {
+                info.name = "Unknown";
               }
 
               char state_char;
               unsigned long long utime, stime;
               int ppid, threads;
               char *rest = rp + 2;
-              
+
               int dummy;
               unsigned long ldummy;
-              int items = sscanf(rest, "%c %d %d %d %d %d %lu %lu %lu %lu %lu %llu %llu %lu %lu %lu %lu %d", 
-                     &state_char, &info.ppid, &dummy, &dummy, &dummy, &dummy, 
-                     &ldummy, &ldummy, &ldummy, &ldummy, &ldummy, 
-                     &utime, &stime, &ldummy, &ldummy, &ldummy, &ldummy, &info.threads);
+              int items = sscanf(rest, "%c %d %d %d %d %d %lu %lu %lu %lu %lu %llu %llu %lu %lu %lu %lu %d", &state_char, &info.ppid,
+                                 &dummy, &dummy, &dummy, &dummy, &ldummy, &ldummy, &ldummy, &ldummy, &ldummy, &utime, &stime, &ldummy,
+                                 &ldummy, &ldummy, &ldummy, &info.threads);
 
               if (items >= 13)
               {
@@ -698,7 +756,7 @@ std::vector<ProcessInfo> ProcessManager::get_processes()
           }
           close(fd_stat);
         }
-        
+
         std::string statm_path = "/proc/" + dir_name + "/statm";
         int fd_statm = open(statm_path.c_str(), O_RDONLY);
         if (fd_statm != -1)
@@ -786,7 +844,9 @@ std::vector<GpuInfo> ProcessManager::get_gpu_info()
   return gpus; // Disabled to save CPU
 
   // NVIDIA
-  FILE *pipe = popen("nvidia-smi --query-gpu=name,utilization.gpu,memory.used,memory.total,temperature.gpu,power.draw --format=csv,noheader,nounits 2>/dev/null", "r");
+  FILE *pipe = popen(
+      "nvidia-smi --query-gpu=name,utilization.gpu,memory.used,memory.total,temperature.gpu,power.draw --format=csv,noheader,nounits 2>/dev/null",
+      "r");
   if (pipe)
   {
     char buffer[256];
@@ -795,7 +855,8 @@ std::vector<GpuInfo> ProcessManager::get_gpu_info()
       std::string line(buffer);
       GpuInfo info;
       size_t pos = 0;
-      auto get_next = [&]() {
+      auto get_next = [&]()
+      {
         size_t next = line.find(',', pos);
         std::string val = (next == std::string::npos) ? line.substr(pos) : line.substr(pos, next - pos);
         if (next != std::string::npos)
@@ -808,14 +869,45 @@ std::vector<GpuInfo> ProcessManager::get_gpu_info()
       };
 
       info.name = get_next();
-      try { info.utilization = std::stod(get_next()); } catch (...) {}
-      try { info.memory_used_mb = std::stod(get_next()); } catch (...) {}
-      try { info.memory_total_mb = std::stod(get_next()); } catch (...) {}
-      try { info.temperature = std::stod(get_next()); } catch (...) {}
-      try { info.power_watts = std::stod(get_next()); } catch (...) {}
-      
-      if (!info.name.empty()) {
-          gpus.push_back(info);
+      try
+      {
+        info.utilization = std::stod(get_next());
+      }
+      catch (...)
+      {
+      }
+      try
+      {
+        info.memory_used_mb = std::stod(get_next());
+      }
+      catch (...)
+      {
+      }
+      try
+      {
+        info.memory_total_mb = std::stod(get_next());
+      }
+      catch (...)
+      {
+      }
+      try
+      {
+        info.temperature = std::stod(get_next());
+      }
+      catch (...)
+      {
+      }
+      try
+      {
+        info.power_watts = std::stod(get_next());
+      }
+      catch (...)
+      {
+      }
+
+      if (!info.name.empty())
+      {
+        gpus.push_back(info);
       }
     }
     pclose(pipe);
@@ -824,92 +916,116 @@ std::vector<GpuInfo> ProcessManager::get_gpu_info()
   // Fallbacks for AMD/Intel
   if (gpus.empty())
   {
-      static unsigned long long prev_rc6 = 0;
-      static double prev_time = 0.0;
-      for (int i = 0; i < 4; i++) {
-          std::string path = "/sys/class/drm/card" + std::to_string(i);
-          struct stat st;
-          if (stat(path.c_str(), &st) == 0) {
-              // check if Intel
-              std::string rc6_path = path + "/gt/gt0/rc6_residency_ms";
-              if (stat(rc6_path.c_str(), &st) == 0) {
-                  std::ifstream rc6_file(rc6_path);
-                  unsigned long long rc6 = 0;
-                  if (rc6_file >> rc6) {
-                      auto now = std::chrono::steady_clock::now();
-                      double current_time = std::chrono::duration<double>(now.time_since_epoch()).count();
-                      if (prev_time > 0.0) {
-                          double time_diff = current_time - prev_time;
-                          double rc6_diff = (rc6 - prev_rc6) / 1000.0; // ms to seconds
-                          double util = 100.0 * (1.0 - (rc6_diff / time_diff));
-                          if (util < 0.0) util = 0.0;
-                          if (util > 100.0) util = 100.0;
-                          
-                          static std::string cached_intel_name = "";
-                          if (cached_intel_name.empty()) {
-                              cached_intel_name = "Intel GPU";
-                              FILE *fp = popen("lspci | grep -i 'vga\\|3d\\|display' | grep -i intel", "r");
-                              if (fp) {
-                                  char buf[256];
-                                  if (fgets(buf, sizeof(buf), fp) != nullptr) {
-                                      std::string line(buf);
-                                      size_t pos = line.find("Intel Corporation ");
-                                      if (pos != std::string::npos) {
-                                          cached_intel_name = "Intel " + line.substr(pos + 18);
-                                          size_t rev_pos = cached_intel_name.find(" (rev");
-                                          if (rev_pos != std::string::npos) cached_intel_name = cached_intel_name.substr(0, rev_pos);
-                                          size_t bracket_pos = cached_intel_name.find(" [");
-                                          if (bracket_pos != std::string::npos) cached_intel_name = cached_intel_name.substr(0, bracket_pos);
-                                          while (!cached_intel_name.empty() && (cached_intel_name.back() == '\n' || cached_intel_name.back() == '\r')) cached_intel_name.pop_back();
-                                      }
-                                  }
-                                  pclose(fp);
-                              }
-                          }
-                          GpuInfo info;
-                          info.name = cached_intel_name;
-                          info.utilization = util;
-                          gpus.push_back(info);
-                      }
-                      prev_rc6 = rc6;
-                      prev_time = current_time;
+    static unsigned long long prev_rc6 = 0;
+    static double prev_time = 0.0;
+    for (int i = 0; i < 4; i++)
+    {
+      std::string path = "/sys/class/drm/card" + std::to_string(i);
+      struct stat st;
+      if (stat(path.c_str(), &st) == 0)
+      {
+        // check if Intel
+        std::string rc6_path = path + "/gt/gt0/rc6_residency_ms";
+        if (stat(rc6_path.c_str(), &st) == 0)
+        {
+          std::ifstream rc6_file(rc6_path);
+          unsigned long long rc6 = 0;
+          if (rc6_file >> rc6)
+          {
+            auto now = std::chrono::steady_clock::now();
+            double current_time = std::chrono::duration<double>(now.time_since_epoch()).count();
+            if (prev_time > 0.0)
+            {
+              double time_diff = current_time - prev_time;
+              double rc6_diff = (rc6 - prev_rc6) / 1000.0; // ms to seconds
+              double util = 100.0 * (1.0 - (rc6_diff / time_diff));
+              if (util < 0.0)
+                util = 0.0;
+              if (util > 100.0)
+                util = 100.0;
+
+              static std::string cached_intel_name = "";
+              if (cached_intel_name.empty())
+              {
+                cached_intel_name = "Intel GPU";
+                FILE *fp = popen("lspci | grep -i 'vga\\|3d\\|display' | grep -i intel", "r");
+                if (fp)
+                {
+                  char buf[256];
+                  if (fgets(buf, sizeof(buf), fp) != nullptr)
+                  {
+                    std::string line(buf);
+                    size_t pos = line.find("Intel Corporation ");
+                    if (pos != std::string::npos)
+                    {
+                      cached_intel_name = "Intel " + line.substr(pos + 18);
+                      size_t rev_pos = cached_intel_name.find(" (rev");
+                      if (rev_pos != std::string::npos)
+                        cached_intel_name = cached_intel_name.substr(0, rev_pos);
+                      size_t bracket_pos = cached_intel_name.find(" [");
+                      if (bracket_pos != std::string::npos)
+                        cached_intel_name = cached_intel_name.substr(0, bracket_pos);
+                      while (!cached_intel_name.empty() && (cached_intel_name.back() == '\n' || cached_intel_name.back() == '\r'))
+                        cached_intel_name.pop_back();
+                    }
                   }
-                  if (!gpus.empty()) break;
+                  pclose(fp);
+                }
               }
-              // check AMD
-              std::string busy_path = path + "/device/gpu_busy_percent";
-              if (stat(busy_path.c_str(), &st) == 0) {
-                  std::ifstream busy_file(busy_path);
-                  int busy = 0;
-                  if (busy_file >> busy) {
-                      static std::string cached_amd_name = "";
-                      if (cached_amd_name.empty()) {
-                          cached_amd_name = "AMD GPU";
-                          FILE *fp = popen("lspci | grep -i 'vga\\|3d\\|display' | grep -i amd", "r");
-                          if (fp) {
-                              char buf[256];
-                              if (fgets(buf, sizeof(buf), fp) != nullptr) {
-                                  std::string line(buf);
-                                  size_t pos = line.find(": ");
-                                  if (pos != std::string::npos) {
-                                      cached_amd_name = line.substr(pos + 2);
-                                      size_t rev_pos = cached_amd_name.find(" (rev");
-                                      if (rev_pos != std::string::npos) cached_amd_name = cached_amd_name.substr(0, rev_pos);
-                                      while (!cached_amd_name.empty() && (cached_amd_name.back() == '\n' || cached_amd_name.back() == '\r')) cached_amd_name.pop_back();
-                                  }
-                              }
-                              pclose(fp);
-                          }
-                      }
-                      GpuInfo info;
-                      info.name = cached_amd_name;
-                      info.utilization = busy;
-                      gpus.push_back(info);
-                  }
-                  if (!gpus.empty()) break;
-              }
+              GpuInfo info;
+              info.name = cached_intel_name;
+              info.utilization = util;
+              gpus.push_back(info);
+            }
+            prev_rc6 = rc6;
+            prev_time = current_time;
           }
+          if (!gpus.empty())
+            break;
+        }
+        // check AMD
+        std::string busy_path = path + "/device/gpu_busy_percent";
+        if (stat(busy_path.c_str(), &st) == 0)
+        {
+          std::ifstream busy_file(busy_path);
+          int busy = 0;
+          if (busy_file >> busy)
+          {
+            static std::string cached_amd_name = "";
+            if (cached_amd_name.empty())
+            {
+              cached_amd_name = "AMD GPU";
+              FILE *fp = popen("lspci | grep -i 'vga\\|3d\\|display' | grep -i amd", "r");
+              if (fp)
+              {
+                char buf[256];
+                if (fgets(buf, sizeof(buf), fp) != nullptr)
+                {
+                  std::string line(buf);
+                  size_t pos = line.find(": ");
+                  if (pos != std::string::npos)
+                  {
+                    cached_amd_name = line.substr(pos + 2);
+                    size_t rev_pos = cached_amd_name.find(" (rev");
+                    if (rev_pos != std::string::npos)
+                      cached_amd_name = cached_amd_name.substr(0, rev_pos);
+                    while (!cached_amd_name.empty() && (cached_amd_name.back() == '\n' || cached_amd_name.back() == '\r'))
+                      cached_amd_name.pop_back();
+                  }
+                }
+                pclose(fp);
+              }
+            }
+            GpuInfo info;
+            info.name = cached_amd_name;
+            info.utilization = busy;
+            gpus.push_back(info);
+          }
+          if (!gpus.empty())
+            break;
+        }
       }
+    }
   }
 
   return gpus;

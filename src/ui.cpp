@@ -4,6 +4,7 @@
 #include "terminal.h"
 
 #include <algorithm>
+#include <chrono>
 
 namespace
 {
@@ -32,7 +33,6 @@ namespace
   }
 } // namespace
 
-
 UIManager::UIManager()
 {
   cpu_history.resize(max_history, 0.0);
@@ -49,11 +49,12 @@ void UIManager::refresh_data()
   core_usages = process_manager.get_core_cpu_usage();
   uptime_s = process_manager.get_system_uptime();
   cpu_hw = process_manager.get_cpu_hardware_info();
-  
+
   static int slow_poll_counter = 0;
-  if (slow_poll_counter++ % 10 == 0) {
-      battery_info = process_manager.get_battery_info();
-      gpu_infos = process_manager.get_gpu_info();
+  if (slow_poll_counter++ % 10 == 0)
+  {
+    battery_info = process_manager.get_battery_info();
+    gpu_infos = process_manager.get_gpu_info();
   }
 
   global_mem = process_manager.get_global_memory();

@@ -1,12 +1,12 @@
 #include "network_manager.h"
 
+#include <algorithm>
 #include <arpa/inet.h>
 #include <chrono>
 #include <fstream>
 #include <ifaddrs.h>
 #include <netinet/in.h>
 #include <sstream>
-#include <algorithm>
 #include <unordered_map>
 
 NetworkManager::NetworkManager() : prev_time(0.0), first_run(true) {}
@@ -32,22 +32,27 @@ std::vector<NetworkInterfaceInfo> NetworkManager::get_network_info()
   static std::unordered_map<std::string, std::string> cached_ips;
   bool refresh_ips = (std::chrono::duration_cast<std::chrono::seconds>(now - last_ifaddr_time).count() >= 30);
 
-  if (refresh_ips) {
-      struct ifaddrs *ifaddr, *ifa;
-      if (getifaddrs(&ifaddr) != -1) {
-          cached_ips.clear();
-          for (ifa = ifaddr; ifa != nullptr; ifa = ifa->ifa_next) {
-              if (ifa->ifa_addr == nullptr) continue;
-              if (ifa->ifa_addr->sa_family == AF_INET) {
-                  char ip_buf[INET_ADDRSTRLEN];
-                  struct sockaddr_in *sa = (struct sockaddr_in *)ifa->ifa_addr;
-                  inet_ntop(AF_INET, &(sa->sin_addr), ip_buf, INET_ADDRSTRLEN);
-                  cached_ips[ifa->ifa_name] = ip_buf;
-              }
-          }
-          freeifaddrs(ifaddr);
-          last_ifaddr_time = now;
+  if (refresh_ips)
+  {
+    struct ifaddrs *ifaddr, *ifa;
+    if (getifaddrs(&ifaddr) != -1)
+    {
+      cached_ips.clear();
+      for (ifa = ifaddr; ifa != nullptr; ifa = ifa->ifa_next)
+      {
+        if (ifa->ifa_addr == nullptr)
+          continue;
+        if (ifa->ifa_addr->sa_family == AF_INET)
+        {
+          char ip_buf[INET_ADDRSTRLEN];
+          struct sockaddr_in *sa = (struct sockaddr_in *)ifa->ifa_addr;
+          inet_ntop(AF_INET, &(sa->sin_addr), ip_buf, INET_ADDRSTRLEN);
+          cached_ips[ifa->ifa_name] = ip_buf;
+        }
       }
+      freeifaddrs(ifaddr);
+      last_ifaddr_time = now;
+    }
   }
 
   while (std::getline(file, line))
@@ -74,12 +79,15 @@ std::vector<NetworkInterfaceInfo> NetworkManager::get_network_info()
       info.tx_bytes = tx_bytes;
       info.rx_speed_kbps = 0.0;
       info.tx_speed_kbps = 0.0;
-      
+
       auto it = cached_ips.find(name);
-      if (it != cached_ips.end()) {
-          info.ip_address = it->second;
-      } else {
-          info.ip_address = "";
+      if (it != cached_ips.end())
+      {
+        info.ip_address = it->second;
+      }
+      else
+      {
+        info.ip_address = "";
       }
 
       if (!first_run && time_diff > 0)
@@ -98,9 +106,8 @@ std::vector<NetworkInterfaceInfo> NetworkManager::get_network_info()
     }
   }
 
-  std::sort(current_info.begin(), current_info.end(), [](const NetworkInterfaceInfo &a, const NetworkInterfaceInfo &b) {
-    return a.name < b.name;
-  });
+  std::sort(current_info.begin(), current_info.end(),
+            [](const NetworkInterfaceInfo &a, const NetworkInterfaceInfo &b) { return a.name < b.name; });
 
   prev_info = current_info;
   prev_time = current_time;

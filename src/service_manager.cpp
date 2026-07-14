@@ -19,10 +19,11 @@ std::vector<ServiceInfo> ServiceManager::get_services()
 {
   auto now = std::chrono::steady_clock::now();
   if (last_service_time != std::chrono::steady_clock::time_point::min() &&
-      std::chrono::duration_cast<std::chrono::seconds>(now - last_service_time).count() < 10) {
-      return cached_services;
+      std::chrono::duration_cast<std::chrono::seconds>(now - last_service_time).count() < 10)
+  {
+    return cached_services;
   }
-  
+
   std::vector<ServiceInfo> services;
 
   std::string cmd = "systemctl list-units --type=service --all --no-pager "

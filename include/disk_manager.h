@@ -4,6 +4,7 @@
 
 struct DiskInfo
 {
+  std::string name;
   std::string mount_point;
   unsigned long long total_bytes;
   unsigned long long free_bytes;
