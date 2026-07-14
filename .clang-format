@@ -16,7 +16,7 @@ FixNamespaceComments: true
 BreakBeforeBraces: Allman
 
 # --- Breaking Rules ---
-AlignAfterOpenBracket: Align
+AlignAfterOpenBracket: BlockIndent
 AlignOperands: true
 AlignTrailingComments: false
 AllowShortBlocksOnASingleLine: Empty
@@ -39,7 +39,7 @@ ColumnLimit: 140
 BinPackArguments: true
 BinPackParameters: true
 ConstructorInitializerAllOnOneLineOrOnePerLine: false
-Cpp11BracedListStyle: false
+Cpp11BracedListStyle: true
 SortIncludes: true
 SpaceBeforeParens: ControlStatements
 DisableFormat: false
