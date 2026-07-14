@@ -599,7 +599,7 @@ void UIManager::draw()
       int pad_len = 1;
 
       std::string pad(pad_len, ' ');
-      int fixed_len = 1 + 5 + pad_len + pad_len + pad_len + 7 + pad_len + 7 + pad_len + 6;
+      int fixed_len = 1 + 7 + pad_len + pad_len + pad_len + 7 + pad_len + 7 + pad_len + 6;
       int rem_len = target_len - fixed_len;
       int status_len = 1;
       int prog_len = 4;
@@ -621,7 +621,7 @@ void UIManager::draw()
       }
 
       std::string header = fmt::format(
-          " {:<5}{}{:<{}.{}}{}{:<{}.{}}{}{:<7}{}{:<7}{}{:>6}", "PID", pad, "Program", prog_len, prog_len, pad, "Status", status_len,
+          " {:<7}{}{:<{}.{}}{}{:<{}.{}}{}{:<7}{}{:<7}{}{:>6}", "PID", pad, "Program", prog_len, prog_len, pad, "Status", status_len,
           status_len, pad, "User", pad, "Memory", pad, "CPU%"
       );
       if ((int)header.length() < target_len)
@@ -634,7 +634,7 @@ void UIManager::draw()
         int idx = i + proc_scroll;
         const auto p = filtered_procs[idx];
         std::string formatted = fmt::format(
-            " {:<5d}{}{:<{}.{}}{}{:<{}.{}}{}{:<7.7}{}{:<7.7}{}{:5.1f}%", p->pid, pad, p->name, prog_len, prog_len, pad, p->state,
+            " {:<7d}{}{:<{}.{}}{}{:<{}.{}}{}{:<7.7}{}{:<7.7}{}{:5.1f}%", p->pid, pad, p->name, prog_len, prog_len, pad, p->state,
             status_len, status_len, pad, p->user, pad, format_bytes(p->memory_kb * 1024), pad, p->cpu_usage
         );
         if ((int)formatted.length() < target_len)
