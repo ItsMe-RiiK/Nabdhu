@@ -21,19 +21,6 @@ if [ "$EUID" -ne 0 ]; then
         for win in $WIN_IDS; do
             xprop -id "$win" -f WM_CLASS 8s -set WM_CLASS "Nabdhu,Nabdhu"
             xprop -id "$win" -remove _NET_WM_ICON 2>/dev/null
-            
-            # 2. Window Centering Logic
-            SCREEN_W=$(xdotool getdisplaygeometry | awk '{print $1}')
-            SCREEN_H=$(xdotool getdisplaygeometry | awk '{print $2}')
-            WIN_GEO=$(xdotool getwindowgeometry "$win" | grep Geometry | awk '{print $2}')
-            WIN_W=$(echo "$WIN_GEO" | cut -d'x' -f1)
-            WIN_H=$(echo "$WIN_GEO" | cut -d'x' -f2)
-            
-            if [ -n "$SCREEN_W" ] && [ -n "$WIN_W" ]; then
-                NEW_X=$(( (SCREEN_W - WIN_W) / 2 ))
-                NEW_Y=$(( (SCREEN_H - WIN_H) / 2 ))
-                xdotool windowmove "$win" "$NEW_X" "$NEW_Y" 2>/dev/null
-            fi
         done
         # Fallback to active window if search fails
         ACTIVE_WIN=$(xdotool getactivewindow 2>/dev/null)
