@@ -41,6 +41,34 @@ void UIManager::handle_input()
     }
   }
 
+  if (show_main_menu)
+  {
+    if (ev.key == input::KeyCode::Up)
+      main_menu_selected--;
+    if (ev.key == input::KeyCode::Down)
+      main_menu_selected++;
+    if (ev.key == input::KeyCode::Enter)
+    {
+      if (main_menu_selected == 0) // Options
+        show_main_menu = false;
+      else if (main_menu_selected == 1) // Help
+        show_main_menu = false;
+      else if (main_menu_selected == 2) // Quit
+        running = false;
+    }
+    if (ev.key == input::KeyCode::Escape || (ev.key == input::KeyCode::Char && ev.ch == 'm'))
+    {
+      show_main_menu = false;
+    }
+
+    if (main_menu_selected < 0)
+      main_menu_selected = 0;
+    if (main_menu_selected > 2)
+      main_menu_selected = 2;
+
+    return;
+  }
+
   if (show_context_menu)
   {
     if (ev.key == input::KeyCode::Up)
@@ -49,7 +77,7 @@ void UIManager::handle_input()
       context_menu_selected++;
     if (ev.key == input::KeyCode::Enter)
       perform_action();
-    int max_c = (tab_selected == 0) ? 2 : 2;
+    int max_c = 3;
     if (context_menu_selected < 0)
       context_menu_selected = 0;
     if (context_menu_selected >= max_c)
@@ -92,6 +120,8 @@ void UIManager::handle_input()
       {
         if (proc_selected > 0)
           proc_selected--;
+        else
+          proc_selected = -1;
       }
       if (proc_selected >= 0 && proc_selected < proc_scroll)
         proc_scroll = proc_selected;
@@ -110,6 +140,8 @@ void UIManager::handle_input()
       {
         if (svc_selected > 0)
           svc_selected--;
+        else
+          svc_selected = -1;
       }
       if (svc_selected >= 0 && svc_selected < svc_scroll)
         svc_scroll = svc_selected;
@@ -121,7 +153,7 @@ void UIManager::handle_input()
     {
       if (proc_selected == -1)
       {
-        proc_scroll++;
+        proc_selected = proc_scroll;
       }
       else if (proc_selected < proc_scroll || proc_selected >= proc_scroll + list_h)
       {
@@ -138,7 +170,7 @@ void UIManager::handle_input()
     {
       if (svc_selected == -1)
       {
-        svc_scroll++;
+        svc_selected = svc_scroll;
       }
       else if (svc_selected < svc_scroll || svc_selected >= svc_scroll + list_h)
       {
@@ -233,18 +265,7 @@ void UIManager::handle_input()
     {
       show_context_menu = false;
     }
-    else if (tab_selected == 0 && proc_selected != -1)
-    {
-      proc_selected = -1;
-    }
-    else if (tab_selected == 1 && svc_selected != -1)
-    {
-      svc_selected = -1;
-    }
-    else
-    {
-      running = false;
-    }
+    // Esc now does not hide highlight and does not open main menu
     return;
   }
   else if (ev.key == input::KeyCode::Char)
@@ -268,9 +289,20 @@ void UIManager::handle_input()
         show_disk = !show_disk;
       else if (ev.ch == 'f' || ev.ch == 'F')
         in_search_mode = true;
+      else if (ev.ch == 'm' || ev.ch == 'M')
+      {
+        show_main_menu = true;
+        main_menu_selected = 0;
+      }
       else if (ev.ch == 's' || ev.ch == 'S')
       {
-        current_sort = (current_sort == SortBy::CPU) ? SortBy::Name : SortBy::CPU;
+        if (current_sort == SortBy::CPU)
+          current_sort = SortBy::Name;
+        else if (current_sort == SortBy::Name)
+          current_sort = SortBy::PID;
+        else
+          current_sort = SortBy::CPU;
+
         apply_filter();
       }
       else if (ev.ch == '+' || ev.ch == '=')

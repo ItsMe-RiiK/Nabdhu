@@ -9,7 +9,6 @@
 #include <iostream>
 #include <pwd.h>
 #include <signal.h>
-#include <sstream>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -93,23 +92,46 @@ std::string ProcessManager::translate_state(char state_char)
 std::vector<GlobalCpuData> ProcessManager::read_all_cpu_data()
 {
   std::vector<GlobalCpuData> data_list;
-  std::ifstream file("/proc/stat");
-  if (file.is_open())
+  int fd = open("/proc/stat", O_RDONLY);
+  if (fd != -1)
   {
-    std::string line;
-    while (std::getline(file, line))
+    char buf[4096];
+    ssize_t bytes = read(fd, buf, sizeof(buf) - 1);
+    close(fd);
+    if (bytes > 0)
     {
-      if (line.substr(0, 3) == "cpu")
+      buf[bytes] = '\0';
+      char *ptr = buf;
+      while (*ptr)
       {
-        GlobalCpuData data;
-        std::stringstream ss(line);
-        std::string cpu_label;
-        ss >> cpu_label >> data.user >> data.nice >> data.system >> data.idle >> data.iowait >> data.irq >> data.softirq >> data.steal;
-        data_list.push_back(data);
-      }
-      else
-      {
-        break; // cpu lines are always at the top
+        if (strncmp(ptr, "cpu", 3) == 0)
+        {
+          GlobalCpuData data = {0, 0, 0, 0, 0, 0, 0, 0};
+
+          char *p = ptr + 3;
+          while (*p && *p != ' ')
+            p++; // skip cpu number if any
+
+          data.user = strtoull(p, &p, 10);
+          data.nice = strtoull(p, &p, 10);
+          data.system = strtoull(p, &p, 10);
+          data.idle = strtoull(p, &p, 10);
+          data.iowait = strtoull(p, &p, 10);
+          data.irq = strtoull(p, &p, 10);
+          data.softirq = strtoull(p, &p, 10);
+          data.steal = strtoull(p, &p, 10);
+
+          data_list.push_back(data);
+        }
+        else
+        {
+          break; // cpu lines are always at the top
+        }
+
+        while (*ptr && *ptr != '\n')
+          ptr++;
+        if (*ptr == '\n')
+          ptr++;
       }
     }
   }
@@ -536,13 +558,12 @@ bool ProcessManager::check_is_app(int pid)
   return false;
 }
 
-std::vector<ProcessInfo> ProcessManager::get_processes()
+const std::vector<ProcessInfo> &ProcessManager::get_processes()
 {
-  std::vector<ProcessInfo> current_processes;
   DIR *dir = opendir("/proc");
   if (dir == nullptr)
   {
-    return current_processes;
+    return cached_processes;
   }
 
   double uptime = get_uptime_internal();
@@ -559,16 +580,17 @@ std::vector<ProcessInfo> ProcessManager::get_processes()
   long page_size = sysconf(_SC_PAGESIZE);
   char stat_buf[1024];
 
+  size_t process_count = 0;
+
   struct dirent *ent;
   while ((ent = readdir(dir)) != nullptr)
   {
     if (ent->d_type == DT_DIR)
     {
-      std::string dir_name(ent->d_name);
       bool is_pid = true;
-      for (char c : dir_name)
+      for (int i = 0; ent->d_name[i] != '\0'; i++)
       {
-        if (!isdigit(c))
+        if (!isdigit(ent->d_name[i]))
         {
           is_pid = false;
           break;
@@ -577,7 +599,7 @@ std::vector<ProcessInfo> ProcessManager::get_processes()
 
       if (is_pid)
       {
-        int pid = std::stoi(dir_name);
+        int pid = atoi(ent->d_name);
         ProcessInfo info;
         info.pid = pid;
         info.cpu_usage = 0.0;
@@ -603,15 +625,16 @@ std::vector<ProcessInfo> ProcessManager::get_processes()
         {
           info.is_app = check_is_app(pid);
 
-          std::string proc_dir = "/proc/" + dir_name;
+          char path_buf[256];
+          snprintf(path_buf, sizeof(path_buf), "/proc/%s", ent->d_name);
           struct stat st;
-          if (stat(proc_dir.c_str(), &st) == 0)
+          if (stat(path_buf, &st) == 0)
           {
             info.user = get_user_from_uid(st.st_uid);
           }
 
-          std::string cmdline_path = "/proc/" + dir_name + "/cmdline";
-          int fd_cmd = open(cmdline_path.c_str(), O_RDONLY);
+          snprintf(path_buf, sizeof(path_buf), "/proc/%s/cmdline", ent->d_name);
+          int fd_cmd = open(path_buf, O_RDONLY);
           if (fd_cmd != -1)
           {
             char cmd_buf[4096];
@@ -672,8 +695,9 @@ std::vector<ProcessInfo> ProcessManager::get_processes()
           }
         }
 
-        std::string stat_path = "/proc/" + dir_name + "/stat";
-        int fd_stat = open(stat_path.c_str(), O_RDONLY);
+        char path_buf2[256];
+        snprintf(path_buf2, sizeof(path_buf2), "/proc/%s/stat", ent->d_name);
+        int fd_stat = open(path_buf2, O_RDONLY);
         if (fd_stat != -1)
         {
           ssize_t bytes_read = read(fd_stat, stat_buf, sizeof(stat_buf) - 1);
@@ -725,14 +749,16 @@ std::vector<ProcessInfo> ProcessManager::get_processes()
 
               int dummy;
               unsigned long ldummy;
-              int items = sscanf(rest, "%c %d %d %d %d %d %lu %lu %lu %lu %lu %llu %llu %lu %lu %lu %lu %d", &state_char, &info.ppid,
-                                 &dummy, &dummy, &dummy, &dummy, &ldummy, &ldummy, &ldummy, &ldummy, &ldummy, &utime, &stime, &ldummy,
-                                 &ldummy, &ldummy, &ldummy, &info.threads);
+              int items = sscanf(
+                  rest, "%c %d %d %d %d %d %lu %lu %lu %lu %lu %llu %llu %lu %lu %lu %lu %d", &state_char, &info.ppid, &dummy, &dummy,
+                  &dummy, &dummy, &ldummy, &ldummy, &ldummy, &ldummy, &ldummy, &utime, &stime, &ldummy, &ldummy, &ldummy, &ldummy,
+                  &info.threads
+              );
 
               if (items >= 13)
               {
                 info.state = translate_state(state_char);
-                current_cpu_map[pid] = { utime, stime };
+                current_cpu_map[pid] = {utime, stime};
                 info.cumulative_cpu_time = utime + stime;
 
                 if (!first_process_run)
@@ -757,8 +783,8 @@ std::vector<ProcessInfo> ProcessManager::get_processes()
           close(fd_stat);
         }
 
-        std::string statm_path = "/proc/" + dir_name + "/statm";
-        int fd_statm = open(statm_path.c_str(), O_RDONLY);
+        snprintf(path_buf2, sizeof(path_buf2), "/proc/%s/statm", ent->d_name);
+        int fd_statm = open(path_buf2, O_RDONLY);
         if (fd_statm != -1)
         {
           char statm_buf[256];
@@ -775,11 +801,21 @@ std::vector<ProcessInfo> ProcessManager::get_processes()
           close(fd_statm);
         }
 
-        current_processes.push_back(info);
+        if (process_count >= cached_processes.size())
+        {
+          cached_processes.push_back(info);
+        }
+        else
+        {
+          cached_processes[process_count] = info;
+        }
+        process_count++;
       }
     }
   }
   closedir(dir);
+
+  cached_processes.resize(process_count);
 
   if (update_cache)
   {
@@ -806,7 +842,7 @@ std::vector<ProcessInfo> ProcessManager::get_processes()
   prev_uptime = uptime;
   first_process_run = false;
 
-  return current_processes;
+  return cached_processes;
 }
 
 bool ProcessManager::kill_process(int pid)
@@ -846,7 +882,8 @@ std::vector<GpuInfo> ProcessManager::get_gpu_info()
   // NVIDIA
   FILE *pipe = popen(
       "nvidia-smi --query-gpu=name,utilization.gpu,memory.used,memory.total,temperature.gpu,power.draw --format=csv,noheader,nounits 2>/dev/null",
-      "r");
+      "r"
+  );
   if (pipe)
   {
     char buffer[256];

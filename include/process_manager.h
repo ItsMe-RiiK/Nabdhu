@@ -92,7 +92,7 @@ public:
   ProcessManager();
   ~ProcessManager();
 
-  std::vector<ProcessInfo> get_processes();
+  const std::vector<ProcessInfo> &get_processes();
   static bool kill_process(int pid);
 
   double get_global_cpu_usage();
@@ -120,6 +120,7 @@ private:
   double last_cache_time;
   double prev_uptime;
 
+  std::vector<ProcessInfo> cached_processes;
   std::vector<GlobalCpuData> prev_cpu_data;
   std::vector<double> last_core_usages;
   double last_global_usage;

@@ -13,7 +13,7 @@ namespace input
   {
     if (terminal::is_resized())
       return true;
-    struct pollfd pfd = { STDIN_FILENO, POLLIN, 0 };
+    struct pollfd pfd = {STDIN_FILENO, POLLIN, 0};
     return poll(&pfd, 1, 0) > 0;
   }
 
@@ -21,13 +21,13 @@ namespace input
   {
     if (terminal::is_resized())
       return true;
-    struct pollfd pfd = { STDIN_FILENO, POLLIN, 0 };
+    struct pollfd pfd = {STDIN_FILENO, POLLIN, 0};
     return poll(&pfd, 1, timeout_ms) > 0;
   }
 
   Event read_event()
   {
-    Event ev = { KeyCode::Unknown, 0, 0, 0 };
+    Event ev = {KeyCode::Unknown, 0, 0, 0};
 
     if (terminal::is_resized())
     {
@@ -44,7 +44,7 @@ namespace input
 
     if (c == '\x1b')
     {
-      struct pollfd pfd = { STDIN_FILENO, POLLIN, 0 };
+      struct pollfd pfd = {STDIN_FILENO, POLLIN, 0};
       if (poll(&pfd, 1, 0) == 0)
       {
         ev.key = KeyCode::Escape;

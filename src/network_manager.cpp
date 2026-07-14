@@ -3,10 +3,13 @@
 #include <algorithm>
 #include <arpa/inet.h>
 #include <chrono>
+#include <cstring>
+#include <fcntl.h>
 #include <fstream>
 #include <ifaddrs.h>
 #include <netinet/in.h>
 #include <sstream>
+#include <unistd.h>
 #include <unordered_map>
 
 NetworkManager::NetworkManager() : prev_time(0.0), first_run(true) {}
@@ -16,17 +19,13 @@ NetworkManager::~NetworkManager() {}
 std::vector<NetworkInterfaceInfo> NetworkManager::get_network_info()
 {
   std::vector<NetworkInterfaceInfo> current_info;
-  std::ifstream file("/proc/net/dev");
-  if (!file.is_open())
+  int fd = open("/proc/net/dev", O_RDONLY);
+  if (fd == -1)
     return current_info;
 
   auto now = std::chrono::steady_clock::now();
   double current_time = std::chrono::duration<double>(now.time_since_epoch()).count();
   double time_diff = current_time - prev_time;
-
-  std::string line;
-  std::getline(file, line);
-  std::getline(file, line);
 
   static auto last_ifaddr_time = std::chrono::steady_clock::time_point::min();
   static std::unordered_map<std::string, std::string> cached_ips;
@@ -55,59 +54,80 @@ std::vector<NetworkInterfaceInfo> NetworkManager::get_network_info()
     }
   }
 
-  while (std::getline(file, line))
+  char buf[4096];
+  ssize_t bytes = read(fd, buf, sizeof(buf) - 1);
+  close(fd);
+
+  if (bytes > 0)
   {
-    size_t colon_pos = line.find(':');
-    if (colon_pos != std::string::npos)
+    buf[bytes] = '\0';
+    char *ptr = buf;
+
+    // skip first two lines
+    for (int i = 0; i < 2; i++)
     {
-      std::string name = line.substr(0, colon_pos);
-      name.erase(0, name.find_first_not_of(" \t"));
-      name.erase(name.find_last_not_of(" \t") + 1);
+      while (*ptr && *ptr != '\n')
+        ptr++;
+      if (*ptr == '\n')
+        ptr++;
+    }
 
-      if (name == "lo")
-        continue;
-
-      std::string stats = line.substr(colon_pos + 1);
-      std::stringstream ss(stats);
-      unsigned long long rx_bytes, tx_bytes, dummy;
-
-      ss >> rx_bytes >> dummy >> dummy >> dummy >> dummy >> dummy >> dummy >> dummy >> tx_bytes;
-
-      NetworkInterfaceInfo info;
-      info.name = name;
-      info.rx_bytes = rx_bytes;
-      info.tx_bytes = tx_bytes;
-      info.rx_speed_kbps = 0.0;
-      info.tx_speed_kbps = 0.0;
-
-      auto it = cached_ips.find(name);
-      if (it != cached_ips.end())
+    while (*ptr)
+    {
+      while (*ptr == ' ' || *ptr == '\t')
+        ptr++;
+      char *colon = strchr(ptr, ':');
+      if (colon)
       {
-        info.ip_address = it->second;
-      }
-      else
-      {
-        info.ip_address = "";
-      }
+        *colon = '\0';
+        std::string name(ptr);
+        ptr = colon + 1;
 
-      if (!first_run && time_diff > 0)
-      {
-        for (const auto &p : prev_info)
+        if (name != "lo")
         {
-          if (p.name == name)
+          unsigned long long rx_bytes = strtoull(ptr, &ptr, 10);
+          for (int i = 0; i < 7; i++)
+            strtoull(ptr, &ptr, 10); // skip 7 fields
+          unsigned long long tx_bytes = strtoull(ptr, &ptr, 10);
+
+          NetworkInterfaceInfo info;
+          info.name = name;
+          info.rx_bytes = rx_bytes;
+          info.tx_bytes = tx_bytes;
+          info.rx_speed_kbps = 0.0;
+          info.tx_speed_kbps = 0.0;
+
+          auto it = cached_ips.find(name);
+          if (it != cached_ips.end())
+            info.ip_address = it->second;
+          else
+            info.ip_address = "";
+
+          if (!first_run && time_diff > 0)
           {
-            info.rx_speed_kbps = ((rx_bytes - p.rx_bytes) / 1024.0) / time_diff;
-            info.tx_speed_kbps = ((tx_bytes - p.tx_bytes) / 1024.0) / time_diff;
-            break;
+            for (const auto &p : prev_info)
+            {
+              if (p.name == name)
+              {
+                info.rx_speed_kbps = ((rx_bytes - p.rx_bytes) / 1024.0) / time_diff;
+                info.tx_speed_kbps = ((tx_bytes - p.tx_bytes) / 1024.0) / time_diff;
+                break;
+              }
+            }
           }
+          current_info.push_back(info);
         }
       }
-      current_info.push_back(info);
+      while (*ptr && *ptr != '\n')
+        ptr++;
+      if (*ptr == '\n')
+        ptr++;
     }
   }
 
-  std::sort(current_info.begin(), current_info.end(),
-            [](const NetworkInterfaceInfo &a, const NetworkInterfaceInfo &b) { return a.name < b.name; });
+  std::sort(
+      current_info.begin(), current_info.end(), [](const NetworkInterfaceInfo &a, const NetworkInterfaceInfo &b) { return a.name < b.name; }
+  );
 
   prev_info = current_info;
   prev_time = current_time;

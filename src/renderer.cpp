@@ -7,6 +7,17 @@
 
 namespace renderer
 {
+  namespace Symbols
+  {
+    const std::array<std::string, 10> superscript = {"⁰", "¹", "²", "³", "⁴", "⁵", "⁶", "⁷", "⁸", "⁹"};
+
+    const std::unordered_map<std::string, std::vector<std::string>> graph_symbols = {
+        {"braille_up",
+         {" ", "⢀", "⢠", "⢰", "⢸", "⡀", "⣀", "⣠", "⣰", "⣸", "⡄", "⣄", "⣤", "⣴", "⣼", "⡆", "⣆", "⣦", "⣶", "⣾", "⡇", "⣇", "⣧", "⣷", "⣿"}},
+        {"braille_down",
+         {" ", "⠈", "⠘", "⠸", "⢸", "⠁", "⠉", "⠙", "⠹", "⢹", "⠃", "⠋", "⠛", "⠻", "⢻", "⠇", "⠏", "⠟", "⠿", "⢿", "⡇", "⡏", "⡟", "⡿", "⣿"}}
+    };
+  } // namespace Symbols
 
   Renderer::Renderer() {}
 
@@ -17,7 +28,7 @@ namespace renderer
     width = w;
     height = h;
     back_buffer.assign(width * height, Cell());
-    front_buffer.assign(width * height, Cell{ "", -1, -1, false, false });
+    front_buffer.assign(width * height, Cell{"", -1, -1, false, false});
     std::cout << "\x1b[2J" << std::flush;
   }
 
@@ -119,6 +130,12 @@ namespace renderer
     draw_text(x, y + h - 1, "└", border_color, bg);
     draw_text(x + w - 1, y + h - 1, "┘", border_color, bg);
 
+    std::string spaces(w - 2, ' ');
+    for (int row = y + 1; row < y + h - 1; ++row)
+    {
+      draw_text(x + 1, row, spaces, border_color, bg);
+    }
+
     if (!title.empty() && w > 4)
     {
       std::string formatted_title = " " + title + " ";
@@ -147,11 +164,60 @@ namespace renderer
     }
   }
 
-  void Renderer::draw_block_gauge(int x, int y, int len, double percent, Gradient grad, int fg_on, int fg_off)
+  void Renderer::draw_block_gauge(
+      int x, int y, int len, double percent, GradientDirection dir, int start_col, int end_col, int fg_on, int fg_off
+  )
   {
     if (y < 0 || y >= height)
       return;
     int filled = (int)(len * percent);
+
+    uint8_t r1 = 0, g1 = 0, b1 = 0;
+    uint8_t r2 = 0, g2 = 0, b2 = 0;
+
+    if (dir == GradientDirection::ColorToColor && start_col != -1 && end_col != -1)
+    {
+      int start_rgb = color_to_rgb(start_col);
+      int end_rgb = color_to_rgb(end_col);
+      r1 = (start_rgb >> 16) & 0xFF;
+      g1 = (start_rgb >> 8) & 0xFF;
+      b1 = start_rgb & 0xFF;
+      r2 = (end_rgb >> 16) & 0xFF;
+      g2 = (end_rgb >> 8) & 0xFF;
+      b2 = end_rgb & 0xFF;
+    }
+    else if (dir == GradientDirection::DarkToLight || dir == GradientDirection::LightToDark)
+    {
+      int base_rgb = color_to_rgb(start_col);
+      uint8_t br = (base_rgb >> 16) & 0xFF;
+      uint8_t bg = (base_rgb >> 8) & 0xFF;
+      uint8_t bb = base_rgb & 0xFF;
+
+      // Darker version of the base color (~40% brightness)
+      uint8_t dr = (uint8_t)(br * 0.4f);
+      uint8_t dg = (uint8_t)(bg * 0.4f);
+      uint8_t db = (uint8_t)(bb * 0.4f);
+
+      if (dir == GradientDirection::DarkToLight)
+      {
+        r1 = dr;
+        g1 = dg;
+        b1 = db;
+        r2 = br;
+        g2 = bg;
+        b2 = bb;
+      }
+      else
+      {
+        r1 = br;
+        g1 = bg;
+        b1 = bb;
+        r2 = dr;
+        g2 = dg;
+        b2 = db;
+      }
+    }
+
     for (int i = 0; i < len; ++i)
     {
       int cur_x = x + i;
@@ -161,43 +227,30 @@ namespace renderer
         int fg = fg_off;
         if (i < filled)
         {
-          if (grad != Gradient::None)
+          if (dir != GradientDirection::None && start_col != -1)
           {
             float t = (float)i / len;
-            if (grad == Gradient::GreenToRed)
+            uint8_t r = r1 + (int)((r2 - r1) * t);
+            uint8_t g = g1 + (int)((g2 - g1) * t);
+            uint8_t b = b1 + (int)((b2 - b1) * t);
+
+            // Special handling to keep Green-Red gradients bright in the middle
+            if (dir == GradientDirection::ColorToColor && ((start_col == 32 && end_col == 31) || (start_col == 31 && end_col == 32)))
             {
               if (t <= 0.5f)
               {
-                fg = renderer::rgb((int)((t * 2.0f) * 255), 255, 0);
+                r = (start_col == 32) ? (int)((t * 2.0f) * 255) : 255;
+                g = (start_col == 32) ? 255 : (int)((t * 2.0f) * 255);
               }
               else
               {
-                fg = renderer::rgb(255, (int)((1.0f - (t - 0.5f) * 2.0f) * 255), 0);
+                r = (start_col == 32) ? 255 : (int)((1.0f - (t - 0.5f) * 2.0f) * 255);
+                g = (start_col == 32) ? (int)((1.0f - (t - 0.5f) * 2.0f) * 255) : 255;
               }
+              b = 0;
             }
-            else if (grad == Gradient::RedToGreen)
-            {
-              if (t <= 0.5f)
-              {
-                fg = renderer::rgb(255, (int)((t * 2.0f) * 255), 0);
-              }
-              else
-              {
-                fg = renderer::rgb((int)((1.0f - (t - 0.5f) * 2.0f) * 255), 255, 0);
-              }
-            }
-            else if (grad == Gradient::DarkRedToRed)
-            {
-              fg = renderer::rgb(100 + (int)(t * 155), 0, 0);
-            }
-            else if (grad == Gradient::DarkGreenToGreen)
-            {
-              fg = renderer::rgb(0, 100 + (int)(t * 155), 0);
-            }
-            else if (grad == Gradient::DarkCyanToCyan)
-            {
-              fg = renderer::rgb(0, 100 + (int)(t * 155), 100 + (int)(t * 155));
-            }
+
+            fg = renderer::rgb(r, g, b);
           }
           else
           {
@@ -234,8 +287,7 @@ namespace renderer
       }
     }
 
-    const std::string braille_up[25] = { " ", "⢀", "⢠", "⢰", "⢸", "⡀", "⣀", "⣠", "⣰", "⣸", "⡄", "⣄", "⣤",
-                                         "⣴", "⣼", "⡆", "⣆", "⣦", "⣶", "⣾", "⡇", "⣇", "⣧", "⣷", "⣿" };
+    const auto &braille = Symbols::graph_symbols.at("braille_up");
 
     for (int cy = 0; cy < h; ++cy)
     {
@@ -259,7 +311,51 @@ namespace renderer
         }
 
         int idx = left_val * 5 + right_val;
-        draw_text(x + cx, y + cy, braille_up[idx], fg, 49);
+        draw_text(x + cx, y + cy, braille[idx], fg, 49);
+      }
+    }
+  }
+
+  void Renderer::draw_block_graph(int x, int y, int w, int h, const std::vector<double> &history)
+  {
+    if (w <= 0 || h <= 0)
+      return;
+
+    int dot_h = h * 8;
+    std::vector<int> heights(w, 0);
+    int hist_len = history.size();
+    if (hist_len > 0)
+    {
+      for (int i = 0; i < w; ++i)
+      {
+        int idx = (i * hist_len) / w;
+        if (idx < hist_len)
+        {
+          heights[i] = (int)((history[idx] / 100.0) * dot_h);
+        }
+      }
+    }
+
+    const std::string blocks[9] = {" ", " ", "▂", "▃", "▄", "▅", "▆", "▇", "█"};
+
+    for (int cy = 0; cy < h; ++cy)
+    {
+      for (int cx = 0; cx < w; ++cx)
+      {
+        int cell_y_from_bottom = h - 1 - cy;
+        int h_val = heights[cx];
+
+        int block_idx = 0;
+        if (h_val <= cell_y_from_bottom * 8)
+          block_idx = 0;
+        else if (h_val >= (cell_y_from_bottom + 1) * 8)
+          block_idx = 8;
+        else
+          block_idx = h_val - cell_y_from_bottom * 8;
+
+        // Optionally map value to color (e.g. green to red)
+        int fg = 32; // Default green
+        draw_text(x + cx, y + cy, blocks[block_idx], fg, 49);
       }
     }
   }

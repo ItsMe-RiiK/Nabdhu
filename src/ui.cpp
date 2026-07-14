@@ -8,18 +8,29 @@
 
 namespace
 {
+  bool compare_icase(const std::string &a, const std::string &b)
+  {
+    for (size_t i = 0; i < a.length() && i < b.length(); ++i)
+    {
+      if (std::tolower(a[i]) != std::tolower(b[i]))
+        return std::tolower(a[i]) < std::tolower(b[i]);
+    }
+    return a.length() < b.length();
+  }
+
   bool contains_icase(const std::string &str, const std::string &query)
   {
     if (query.empty())
       return true;
-    auto it = std::search(str.begin(), str.end(), query.begin(), query.end(),
-                          [](char ch1, char ch2) { return std::tolower(ch1) == std::tolower(ch2); });
+    auto it = std::search(
+        str.begin(), str.end(), query.begin(), query.end(), [](char ch1, char ch2) { return std::tolower(ch1) == std::tolower(ch2); }
+    );
     return it != str.end();
   }
 
   std::string format_bytes(long long bytes)
   {
-    const char *units[] = { "B", "KB", "MB", "GB", "TB" };
+    const char *units[] = {"B", "KB", "MB", "GB", "TB"};
     int i = 0;
     double size = bytes;
     while (size >= 1024 && i < 4)
@@ -139,8 +150,10 @@ void UIManager::apply_filter()
 
   if (current_sort == SortBy::CPU)
   {
-    std::stable_sort(filtered_procs.begin(), filtered_procs.end(),
-                     [](const ProcessInfo *a, const ProcessInfo *b) { return a->cumulative_cpu_time > b->cumulative_cpu_time; });
+    std::stable_sort(
+        filtered_procs.begin(), filtered_procs.end(),
+        [](const ProcessInfo *a, const ProcessInfo *b) { return a->cumulative_cpu_time > b->cumulative_cpu_time; }
+    );
 
     // CPU Lazy: push processes over 5.0% instantaneous CPU to the front
     double target = 5.0;
@@ -153,9 +166,16 @@ void UIManager::apply_filter()
       }
     }
   }
-  else
+  else if (current_sort == SortBy::Name)
   {
-    std::sort(filtered_procs.begin(), filtered_procs.end(), [](const ProcessInfo *a, const ProcessInfo *b) { return a->name < b->name; });
+    std::sort(
+        filtered_procs.begin(), filtered_procs.end(),
+        [](const ProcessInfo *a, const ProcessInfo *b) { return compare_icase(a->name, b->name); }
+    );
+  }
+  else if (current_sort == SortBy::PID)
+  {
+    std::sort(filtered_procs.begin(), filtered_procs.end(), [](const ProcessInfo *a, const ProcessInfo *b) { return a->pid < b->pid; });
   }
   if (proc_selected >= (int)filtered_procs.size())
     proc_selected = std::max(-1, (int)filtered_procs.size() - 1);
@@ -193,7 +213,10 @@ void UIManager::run(int argc, char *argv[])
 
     if (timeout_data <= 0)
     {
-      refresh_data();
+      if (!show_main_menu)
+      {
+        refresh_data();
+      }
       last_data_refresh = std::chrono::steady_clock::now();
       timeout_data = refresh_rate_ms;
       dirty = true;

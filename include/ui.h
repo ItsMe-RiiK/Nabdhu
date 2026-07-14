@@ -36,7 +36,8 @@ private:
   enum class SortBy
   {
     CPU,
-    Name
+    Name,
+    PID
   };
   SortBy current_sort = SortBy::CPU;
 
@@ -53,6 +54,9 @@ private:
   bool in_search_mode = false;
   bool show_context_menu = false;
   int context_menu_selected = 0;
+
+  bool show_main_menu = false;
+  int main_menu_selected = 0;
 
   std::vector<ProcessInfo> raw_procs;
   std::vector<ServiceInfo> raw_svcs;

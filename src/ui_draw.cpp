@@ -7,12 +7,13 @@
 #include <fmt/core.h>
 #include <fmt/format.h>
 #include <string>
+#include <vector>
 
 namespace
 {
   std::string format_bytes(long long bytes)
   {
-    const char *units[] = { "B", "KB", "MB", "GB", "TB" };
+    const char *units[] = {"B", "KB", "MB", "GB", "TB"};
     int i = 0;
     double size = bytes;
     while (size >= 1024 && i < 4)
@@ -222,7 +223,9 @@ void UIManager::draw()
   {
     int bat_col = get_bat_color(battery_info.capacity);
     render.draw_text(pos[2] - 1, 0, " BAT: ", 37);
-    render.draw_block_gauge(pos[2] + 5, 0, 10, battery_info.capacity / 100.0, renderer::Gradient::RedToGreen, bat_col, 90);
+    render.draw_block_gauge(
+        pos[2] + 5, 0, 10, battery_info.capacity / 100.0, renderer::GradientDirection::ColorToColor, 31, 32, bat_col, 90
+    );
     render.draw_text(pos[2] + 16, 0, std::to_string(battery_info.capacity) + "% ", bat_col);
     ms_idx = 3;
   }
@@ -260,13 +263,14 @@ void UIManager::draw()
               return fmt::format("{:02d}h:{:02d}m:{:02d}s", h_up, m_up, s_up);
             }() +
             " ",
-        37);
+        37
+    );
     if (cpu_h > 2)
     {
       std::string clean_name = cpu_hw.model_name;
-      std::string fluff[] = { "Intel(R)",     "Core(TM)",    "CPU",     "Processor", "14th Gen", "13th Gen", "12th Gen",
-                              "11th Gen",     "10th Gen",    "9th Gen", "8th Gen",   "7th Gen",  "AMD ",     "with Radeon Graphics",
-                              "AuthenticAMD", "GenuineIntel" };
+      std::string fluff[] = {"Intel(R)",     "Core(TM)",    "CPU",     "Processor", "14th Gen", "13th Gen", "12th Gen",
+                             "11th Gen",     "10th Gen",    "9th Gen", "8th Gen",   "7th Gen",  "AMD ",     "with Radeon Graphics",
+                             "AuthenticAMD", "GenuineIntel"};
       for (const auto &f : fluff)
       {
         size_t pos;
@@ -322,7 +326,7 @@ void UIManager::draw()
       int graph_x = 6;
       int total_len = speed_str.length() + temp_str.length();
       int graph_len = left_w - graph_x - total_len - 2;
-      render.draw_block_gauge(graph_x, y_cursor + 2, graph_len, total_pct / 100.0, renderer::Gradient::GreenToRed);
+      render.draw_block_gauge(graph_x, y_cursor + 2, graph_len, total_pct / 100.0, renderer::GradientDirection::ColorToColor, 32, 31);
 
       int text_start = graph_x + graph_len + 1;
       render.draw_text(text_start, y_cursor + 2, speed_str, 37);
@@ -360,7 +364,7 @@ void UIManager::draw()
 
         std::string core_name = "C" + std::to_string(i);
         render.draw_text(cx, cy, core_name, 36);
-        render.draw_block_gauge(cx + 3, cy, col_w - 8, core_usages[i] / 100.0, renderer::Gradient::GreenToRed);
+        render.draw_block_gauge(cx + 3, cy, col_w - 8, core_usages[i] / 100.0, renderer::GradientDirection::ColorToColor, 32, 31);
         if (!temp_str.empty())
           render.draw_text(cx + col_w - 5, cy, temp_str, temp_col);
       }
@@ -386,7 +390,7 @@ void UIManager::draw()
 
         int graph_x = 6;
         int graph_len = left_w - graph_x - ginfo.length() - 2;
-        render.draw_block_gauge(graph_x, gpu_y, graph_len, gpu.utilization / 100.0, renderer::Gradient::GreenToRed);
+        render.draw_block_gauge(graph_x, gpu_y, graph_len, gpu.utilization / 100.0, renderer::GradientDirection::ColorToColor, 32, 31);
         render.draw_text(graph_x + graph_len + 1, gpu_y, ginfo, 37);
       }
     }
@@ -417,21 +421,21 @@ void UIManager::draw()
         render.draw_text(2, y_cursor + 2, "Used:", 37);
         render.draw_text(m_w - 10, y_cursor + 2, format_bytes(used * 1024), 37);
         if (m_w > 4)
-          render.draw_block_gauge(2, y_cursor + 3, m_w - 4, used / total, renderer::Gradient::DarkRedToRed, 31);
+          render.draw_block_gauge(2, y_cursor + 3, m_w - 4, used / total, renderer::GradientDirection::DarkToLight, 31, -1, 31);
 
         if (mid_h > 6)
         {
           render.draw_text(2, y_cursor + 4, "Cached:", 37);
           render.draw_text(m_w - 10, y_cursor + 4, format_bytes(cached * 1024), 37);
           if (m_w > 4)
-            render.draw_block_gauge(2, y_cursor + 5, m_w - 4, cached / total, renderer::Gradient::DarkCyanToCyan, 36);
+            render.draw_block_gauge(2, y_cursor + 5, m_w - 4, cached / total, renderer::GradientDirection::DarkToLight, 36, -1, 36);
         }
         if (mid_h > 8)
         {
           render.draw_text(2, y_cursor + 6, "Free:", 37);
           render.draw_text(m_w - 10, y_cursor + 6, format_bytes(free * 1024), 37);
           if (m_w > 4)
-            render.draw_block_gauge(2, y_cursor + 7, m_w - 4, free / total, renderer::Gradient::DarkGreenToGreen, 32);
+            render.draw_block_gauge(2, y_cursor + 7, m_w - 4, free / total, renderer::GradientDirection::DarkToLight, 32, -1, 32);
         }
       }
     }
@@ -456,26 +460,26 @@ void UIManager::draw()
           if (d_w > 25)
           {
             render.draw_text(d_x + 2, dy + 1, fmt::format("Used: {:.1f}%", used_pct * 100.0), 37);
-            render.draw_block_gauge(d_x + 15, dy + 1, d_w - 17, used_pct, renderer::Gradient::DarkRedToRed, 31);
+            render.draw_block_gauge(d_x + 15, dy + 1, d_w - 17, used_pct, renderer::GradientDirection::DarkToLight, 31, -1, 31);
           }
           else
           {
             render.draw_text(d_x + 2, dy + 1, fmt::format("U: {:.1f}%", used_pct * 100.0), 37);
             if (d_w > 12)
-              render.draw_block_gauge(d_x + 10, dy + 1, d_w - 12, used_pct, renderer::Gradient::DarkRedToRed, 31);
+              render.draw_block_gauge(d_x + 10, dy + 1, d_w - 12, used_pct, renderer::GradientDirection::DarkToLight, 31, -1, 31);
           }
 
           double free_pct = (double)(disks[i].total_bytes - disks[i].used_bytes) / disks[i].total_bytes;
           if (d_w > 25)
           {
             render.draw_text(d_x + 2, dy + 2, fmt::format("Free: {:.1f}%", free_pct * 100.0), 37);
-            render.draw_block_gauge(d_x + 15, dy + 2, d_w - 17, free_pct, renderer::Gradient::DarkGreenToGreen, 32);
+            render.draw_block_gauge(d_x + 15, dy + 2, d_w - 17, free_pct, renderer::GradientDirection::DarkToLight, 32, -1, 32);
           }
           else
           {
             render.draw_text(d_x + 2, dy + 2, fmt::format("F: {:.1f}%", free_pct * 100.0), 37);
             if (d_w > 12)
-              render.draw_block_gauge(d_x + 10, dy + 2, d_w - 12, free_pct, renderer::Gradient::DarkGreenToGreen, 32);
+              render.draw_block_gauge(d_x + 10, dy + 2, d_w - 12, free_pct, renderer::GradientDirection::DarkToLight, 32, -1, 32);
           }
         }
       }
@@ -521,9 +525,21 @@ void UIManager::draw()
             total_tx += net.tx_bytes;
           }
         }
-        std::string t_rx = format_bytes(total_rx);
-        std::string t_tx = format_bytes(total_tx);
-        std::string tbuf = fmt::format("Totl: {:8} | {:8}", t_rx, t_tx);
+        auto format_vu = [](long long bytes)
+        {
+          const char *units[] = {"B ", "KB", "MB", "GB", "TB"};
+          int i = 0;
+          double size = bytes;
+          while (size >= 1024 && i < 4)
+          {
+            size /= 1024;
+            i++;
+          }
+          return std::make_pair(size, units[i]);
+        };
+        auto rx_p = format_vu(total_rx);
+        auto tx_p = format_vu(total_tx);
+        std::string tbuf = fmt::format("Totl: {:6.2f}{} | {:8.2f}{}   ", rx_p.first, rx_p.second, tx_p.first, tx_p.second);
         render.draw_text(text_x, y_cursor + 4, tbuf, 37);
       }
     }
@@ -548,7 +564,7 @@ void UIManager::draw()
     tx += 3;
 
     // Sort indicator (draw on right edge first)
-    std::string sort_text = (current_sort == SortBy::CPU) ? "ort(CPU) " : "ort(Name)";
+    std::string sort_text = (current_sort == SortBy::CPU) ? "ort(CPU) " : (current_sort == SortBy::Name) ? "ort(Name)" : "ort(PID) ";
     int sort_x = left_w + right_w - sort_text.length() - 2;
     render.draw_text(sort_x, 1, "S", 91);
     render.draw_text(sort_x + 1, 1, sort_text, 37);
@@ -583,11 +599,34 @@ void UIManager::draw()
     if (tab_selected == 0)
     {
       int target_len = right_w - 3;
-      int fixed_len = 38;
-      int prog_len = std::max(4, target_len - fixed_len);
+      int pad_len = 1;
 
-      std::string header =
-          fmt::format(" {:<5}   {:<{}.{}}   {:<7}   {:<7}   {:>6}", "PID", "Program", prog_len, prog_len, "User", "Mem", "CPU%");
+      std::string pad(pad_len, ' ');
+      int fixed_len = 1 + 5 + pad_len + pad_len + pad_len + 7 + pad_len + 7 + pad_len + 6;
+      int rem_len = target_len - fixed_len;
+      int status_len = 1;
+      int prog_len = 4;
+
+      if (rem_len >= 18)
+      {
+        status_len = 8;
+        prog_len = rem_len - 8;
+      }
+      else if (rem_len >= 14)
+      {
+        status_len = 4;
+        prog_len = rem_len - 4;
+      }
+      else
+      {
+        status_len = 1;
+        prog_len = std::max(4, rem_len - 1);
+      }
+
+      std::string header = fmt::format(
+          " {:<5}{}{:<{}.{}}{}{:<{}.{}}{}{:<7}{}{:<7}{}{:>6}", "PID", pad, "Program", prog_len, prog_len, pad, "Status", status_len,
+          status_len, pad, "User", pad, "Mem", pad, "CPU%"
+      );
       if ((int)header.length() < target_len)
         header.append(target_len - header.length(), ' ');
       if (avail_h > 3)
@@ -597,8 +636,10 @@ void UIManager::draw()
       {
         int idx = i + proc_scroll;
         const auto p = filtered_procs[idx];
-        std::string formatted = fmt::format(" {:<5d}   {:<{}.{}}   {:<7.7}   {:<7.7}   {:5.1f}%", p->pid, p->name, prog_len, prog_len,
-                                            p->user, format_bytes(p->memory_kb * 1024), p->cpu_usage);
+        std::string formatted = fmt::format(
+            " {:<5d}{}{:<{}.{}}{}{:<{}.{}}{}{:<7.7}{}{:<7.7}{}{:5.1f}%", p->pid, pad, p->name, prog_len, prog_len, pad, p->state,
+            status_len, status_len, pad, p->user, pad, format_bytes(p->memory_kb * 1024), pad, p->cpu_usage
+        );
         if ((int)formatted.length() < target_len)
           formatted.append(target_len - formatted.length(), ' ');
 
@@ -668,8 +709,10 @@ void UIManager::draw()
       int status_len = 10;
       int desc_len = std::max(4, target_len - name_len - status_len - 7);
 
-      std::string header = fmt::format(" {:<{}.{}}   {:<{}.{}}   {:<{}.{}}", "Service Name", name_len, name_len, "Status", status_len,
-                                       status_len, "Description", desc_len, desc_len);
+      std::string header = fmt::format(
+          " {:<{}.{}}   {:<{}.{}}   {:<{}.{}}", "Service Name", name_len, name_len, "Status", status_len, status_len, "Description",
+          desc_len, desc_len
+      );
       if ((int)header.length() < target_len)
         header.append(target_len - header.length(), ' ');
       if (avail_h > 3)
@@ -679,8 +722,10 @@ void UIManager::draw()
       {
         int idx = i + svc_scroll;
         const auto s = filtered_svcs[idx];
-        std::string formatted = fmt::format(" {:<{}.{}}   {:<{}.{}}   {:<{}.{}}", s->name, name_len, name_len, s->active_state, status_len,
-                                            status_len, s->description, desc_len, desc_len);
+        std::string formatted = fmt::format(
+            " {:<{}.{}}   {:<{}.{}}   {:<{}.{}}", s->name, name_len, name_len, s->active_state, status_len, status_len, s->description,
+            desc_len, desc_len
+        );
         if ((int)formatted.length() < target_len)
           formatted.append(target_len - formatted.length(), ' ');
 
@@ -747,19 +792,38 @@ void UIManager::draw()
   if (show_context_menu)
   {
     int cx = w / 2 - 10;
-    int cy = h / 2 - 3;
-    render.draw_window(cx, cy, 20, 6, "Action", 91);
-    std::string act1 = "End Task";
+    int cy = h / 2 - 4;
+    render.draw_window(cx, cy, 20, 7, "Action", 91);
+    std::string act1 = (tab_selected == 0) ? "End Task" : "End Service";
     std::string act2 = "Open Location";
-    if (context_menu_selected == 0)
+    std::string act3 = "Cancel";
+    std::string options[3] = {act1, act2, act3};
+    for (int i = 0; i < 3; i++)
     {
-      render.draw_text(cx + 2, cy + 2, "> " + act1, 30, 47, true);
-      render.draw_text(cx + 4, cy + 3, act2, 37, 49);
+      if (context_menu_selected == i)
+        render.draw_text(cx + 2, cy + 2 + i, "> " + options[i], 30, 47, true);
+      else
+        render.draw_text(cx + 4, cy + 2 + i, options[i], 37, 49);
     }
-    else
+  }
+
+  if (show_main_menu)
+  {
+    int mw = 26;
+    int mh = 11;
+    int mx = w / 2 - mw / 2;
+    int my = h / 2 - mh / 2;
+    render.draw_window(mx, my, mw, mh, "", 36);
+
+    render.draw_text(mx + mw / 2 - 5, my + 2, "N A B D H U", 96, 49, true);
+
+    std::string options[3] = {" Options ", " Help ", " Quit "};
+    for (int i = 0; i < 3; i++)
     {
-      render.draw_text(cx + 4, cy + 2, act1, 37, 49);
-      render.draw_text(cx + 2, cy + 3, "> " + act2, 30, 47, true);
+      if (main_menu_selected == i)
+        render.draw_text(mx + mw / 2 - options[i].length() / 2, my + 5 + i * 2, options[i], 30, 47, true);
+      else
+        render.draw_text(mx + mw / 2 - options[i].length() / 2, my + 5 + i * 2, options[i], 37, 49, false);
     }
   }
 
