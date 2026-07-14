@@ -8,11 +8,19 @@
 
 namespace renderer
 {
-
   namespace Symbols
   {
     extern const std::array<std::string, 10> superscript;
     extern const std::unordered_map<std::string, std::vector<std::string>> graph_symbols;
+    extern const std::string hline;
+    extern const std::string vline;
+    extern const std::string top_left;
+    extern const std::string top_right;
+    extern const std::string bottom_left;
+    extern const std::string bottom_right;
+    extern const std::string block;
+    extern const std::string degree;
+    extern const std::array<std::string, 9> blocks;
   } // namespace Symbols
 
   enum class GradientDirection
@@ -106,6 +114,7 @@ namespace renderer
     draw_text(int x, int y, const std::string &text, int fg = 39, int bg = 49, bool bold = false, bool inverted = false, int max_w = -1);
     void draw_hline(int x, int y, int len, int fg = 39, int bg = 49);
     void draw_vline(int x, int y, int len, int fg = 39, int bg = 49);
+    void fill_rect(int x, int y, int w, int h, const std::string &ch = " ", int fg = 39, int bg = 49);
     void draw_window(int x, int y, int w, int h, const std::string &title, int title_color = 91, int border_color = 37, int bg = 49);
     void draw_gauge(int x, int y, int len, double percent, int fg_on = 32, int fg_off = 90);
     void draw_block_gauge(

@@ -2,7 +2,6 @@
 
 namespace terminal
 {
-
   void init();
   void restore();
   int get_width();

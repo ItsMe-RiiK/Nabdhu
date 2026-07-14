@@ -8,7 +8,6 @@
 
 namespace input
 {
-
   bool has_event()
   {
     if (terminal::is_resized())

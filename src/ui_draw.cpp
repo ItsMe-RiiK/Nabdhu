@@ -251,7 +251,7 @@ void UIManager::draw()
   if (show_cpu)
   {
     render.draw_window(0, y_cursor, left_w, cpu_h, "", 37);
-    render.draw_text(2, y_cursor, "\xC2\xB9", 91);
+    render.draw_text(2, y_cursor, renderer::Symbols::superscript[1], 91);
     render.draw_text(
         3, y_cursor,
         "CPU \xE2\x94\x80\xE2\x94\x80 Uptime " +
@@ -316,8 +316,7 @@ void UIManager::draw()
       std::string temp_str = "";
       if (pkg_temp > 0)
       {
-        temp_str = std::to_string(pkg_temp) + "\xC2\xB0"
-                                              "C";
+        temp_str = std::to_string(pkg_temp) + renderer::Symbols::degree + "C";
       }
 
       std::string speed_str = fmt::format("{:3d}% @ {} ", (int)total_pct, cpu_hw.real_speed);
@@ -357,9 +356,7 @@ void UIManager::draw()
         int cy = cores_y + r;
 
         int temp_val = (i < cpu_hw.core_temps.size()) ? cpu_hw.core_temps[i] : 0;
-        std::string temp_str = (temp_val > 0) ? (std::to_string(temp_val) + "\xC2\xB0"
-                                                                            "C") :
-                                                "";
+        std::string temp_str = (temp_val > 0) ? (std::to_string(temp_val) + renderer::Symbols::degree + "C") : "";
         int temp_col = get_temp_color(temp_val);
 
         std::string core_name = "C" + std::to_string(i);
@@ -406,7 +403,7 @@ void UIManager::draw()
     if (show_mem)
     {
       render.draw_window(0, y_cursor, m_w, mid_h, "", 37);
-      render.draw_text(2, y_cursor, "\xC2\xB2", 91);
+      render.draw_text(2, y_cursor, renderer::Symbols::superscript[2], 91);
       render.draw_text(3, y_cursor, "Memory ", 37);
       if (mid_h > 4)
       {
@@ -491,7 +488,7 @@ void UIManager::draw()
   if (show_net)
   {
     render.draw_window(0, y_cursor, left_w, net_h, "", 37);
-    render.draw_text(2, y_cursor, "\xC2\xB3", 91);
+    render.draw_text(2, y_cursor, renderer::Symbols::superscript[3], 91);
     render.draw_text(3, y_cursor, "Net ", 37);
     if (net_h > 2)
     {
@@ -625,7 +622,7 @@ void UIManager::draw()
 
       std::string header = fmt::format(
           " {:<5}{}{:<{}.{}}{}{:<{}.{}}{}{:<7}{}{:<7}{}{:>6}", "PID", pad, "Program", prog_len, prog_len, pad, "Status", status_len,
-          status_len, pad, "User", pad, "Mem", pad, "CPU%"
+          status_len, pad, "User", pad, "Memory", pad, "CPU%"
       );
       if ((int)header.length() < target_len)
         header.append(target_len - header.length(), ' ');
@@ -751,11 +748,11 @@ void UIManager::draw()
       std::string counts_str;
       if (svc_selected == -1)
       {
-        counts_str = fmt::format(" -/{} ", (int)filtered_svcs.size());
+        counts_str = fmt::format("-/{} ", (int)filtered_svcs.size());
       }
       else
       {
-        counts_str = fmt::format(" {}/{} ", svc_selected + 1, (int)filtered_svcs.size());
+        counts_str = fmt::format("{}/{} ", svc_selected + 1, (int)filtered_svcs.size());
       }
       r_edge -= counts_str.length();
       render.draw_text(r_edge, bottom_y, counts_str, 37, 49);
@@ -768,7 +765,7 @@ void UIManager::draw()
       render.draw_text(r_edge, bottom_y, enter_sym, (svc_selected != -1) ? 91 : 90, 49);
 
       r_edge -= 5;
-      render.draw_text(r_edge, bottom_y, " Info", (svc_selected != -1) ? 37 : 90, 49);
+      render.draw_text(r_edge, bottom_y, "Info", (svc_selected != -1) ? 37 : 90, 49);
 
       r_edge -= 4;
       render.draw_text(r_edge, bottom_y, " \xE2\x94\x80\xE2\x94\x80 ", 37, 49);
@@ -778,7 +775,7 @@ void UIManager::draw()
       render.draw_text(r_edge, bottom_y, down_sym, 91, 49);
 
       r_edge -= 7;
-      render.draw_text(r_edge, bottom_y, " select", 37, 49);
+      render.draw_text(r_edge, bottom_y, "select", 37, 49);
 
       std::string up_sym = "\xE2\x86\x91";
       r_edge -= 1;

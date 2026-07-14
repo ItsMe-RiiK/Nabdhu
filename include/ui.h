@@ -5,7 +5,10 @@
 #include "renderer.h"
 #include "service_manager.h"
 
+#include <atomic>
+#include <mutex>
 #include <string>
+#include <thread>
 #include <vector>
 
 class UIManager
@@ -21,6 +24,7 @@ private:
   void draw();
   void handle_input();
   void perform_action();
+  void data_collection_loop();
 
   ProcessManager process_manager;
   ServiceManager service_manager;
@@ -41,13 +45,17 @@ private:
   };
   SortBy current_sort = SortBy::CPU;
 
-  bool running = true;
+  std::atomic<bool> running{true};
+  std::mutex data_mutex;
+  std::thread data_thread;
+  std::atomic<bool> data_dirty{false};
+
   renderer::Renderer render;
 
   int tab_selected = 0; // 0 = Processes, 1 = Services
-  int proc_selected = 0;
+  int proc_selected = -1;
   int proc_scroll = 0;
-  int svc_selected = 0;
+  int svc_selected = -1;
   int svc_scroll = 0;
 
   std::string search_query = "";
@@ -55,7 +63,7 @@ private:
   bool show_context_menu = false;
   int context_menu_selected = 0;
 
-  bool show_main_menu = false;
+  std::atomic<bool> show_main_menu{false};
   int main_menu_selected = 0;
 
   std::vector<ProcessInfo> raw_procs;

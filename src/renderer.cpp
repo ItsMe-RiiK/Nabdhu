@@ -17,6 +17,16 @@ namespace renderer
         {"braille_down",
          {" ", "⠈", "⠘", "⠸", "⢸", "⠁", "⠉", "⠙", "⠹", "⢹", "⠃", "⠋", "⠛", "⠻", "⢻", "⠇", "⠏", "⠟", "⠿", "⢿", "⡇", "⡏", "⡟", "⡿", "⣿"}}
     };
+
+    const std::string hline = "─";
+    const std::string vline = "│";
+    const std::string top_left = "┌";
+    const std::string top_right = "┐";
+    const std::string bottom_left = "└";
+    const std::string bottom_right = "┘";
+    const std::string block = "■";
+    const std::string degree = "\xC2\xB0";
+    const std::array<std::string, 9> blocks = {" ", " ", "▂", "▃", "▄", "▅", "▆", "▇", "█"};
   } // namespace Symbols
 
   Renderer::Renderer() {}
@@ -89,7 +99,7 @@ namespace renderer
       if (cur_x >= 0 && cur_x < width)
       {
         int idx = y * width + cur_x;
-        back_buffer[idx].ch = "─";
+        back_buffer[idx].ch = Symbols::hline;
         back_buffer[idx].fg = fg;
         back_buffer[idx].bg = bg;
         back_buffer[idx].bold = false;
@@ -108,7 +118,27 @@ namespace renderer
       if (cur_y >= 0 && cur_y < height)
       {
         int idx = cur_y * width + x;
-        back_buffer[idx].ch = "│";
+        back_buffer[idx].ch = Symbols::vline;
+        back_buffer[idx].fg = fg;
+        back_buffer[idx].bg = bg;
+        back_buffer[idx].bold = false;
+        back_buffer[idx].inverted = false;
+      }
+    }
+  }
+
+  void Renderer::fill_rect(int x, int y, int w, int h, const std::string &ch, int fg, int bg)
+  {
+    for (int row = y; row < y + h; ++row)
+    {
+      if (row < 0 || row >= height)
+        continue;
+      for (int col = x; col < x + w; ++col)
+      {
+        if (col < 0 || col >= width)
+          continue;
+        int idx = row * width + col;
+        back_buffer[idx].ch = ch;
         back_buffer[idx].fg = fg;
         back_buffer[idx].bg = bg;
         back_buffer[idx].bold = false;
@@ -125,15 +155,14 @@ namespace renderer
     draw_hline(x + 1, y + h - 1, w - 2, border_color, bg);
     draw_vline(x, y + 1, h - 2, border_color, bg);
     draw_vline(x + w - 1, y + 1, h - 2, border_color, bg);
-    draw_text(x, y, "┌", border_color, bg);
-    draw_text(x + w - 1, y, "┐", border_color, bg);
-    draw_text(x, y + h - 1, "└", border_color, bg);
-    draw_text(x + w - 1, y + h - 1, "┘", border_color, bg);
+    draw_text(x, y, Symbols::top_left, border_color, bg);
+    draw_text(x + w - 1, y, Symbols::top_right, border_color, bg);
+    draw_text(x, y + h - 1, Symbols::bottom_left, border_color, bg);
+    draw_text(x + w - 1, y + h - 1, Symbols::bottom_right, border_color, bg);
 
-    std::string spaces(w - 2, ' ');
-    for (int row = y + 1; row < y + h - 1; ++row)
+    if (w > 2 && h > 2)
     {
-      draw_text(x + 1, row, spaces, border_color, bg);
+      fill_rect(x + 1, y + 1, w - 2, h - 2, " ", border_color, bg);
     }
 
     if (!title.empty() && w > 4)
@@ -155,7 +184,7 @@ namespace renderer
       {
         int idx = y * width + cur_x;
         int fg = (i < filled) ? fg_on : fg_off;
-        back_buffer[idx].ch = "│";
+        back_buffer[idx].ch = Symbols::vline;
         back_buffer[idx].fg = fg;
         back_buffer[idx].bg = 49;
         back_buffer[idx].bold = false;
@@ -257,7 +286,7 @@ namespace renderer
             fg = fg_on;
           }
         }
-        back_buffer[idx].ch = "■";
+        back_buffer[idx].ch = Symbols::block;
         back_buffer[idx].fg = fg;
         back_buffer[idx].bg = 49;
         back_buffer[idx].bold = false;
@@ -323,20 +352,17 @@ namespace renderer
 
     int dot_h = h * 8;
     std::vector<int> heights(w, 0);
-    int hist_len = history.size();
-    if (hist_len > 0)
+    int data_len = history.size();
+    if (data_len == 0)
+      return;
+    for (int i = 0; i < w; ++i)
     {
-      for (int i = 0; i < w; ++i)
+      int idx = (i * data_len) / w;
+      if (idx < data_len)
       {
-        int idx = (i * hist_len) / w;
-        if (idx < hist_len)
-        {
-          heights[i] = (int)((history[idx] / 100.0) * dot_h);
-        }
+        heights[i] = (int)((history[idx] / 100.0) * dot_h);
       }
     }
-
-    const std::string blocks[9] = {" ", " ", "▂", "▃", "▄", "▅", "▆", "▇", "█"};
 
     for (int cy = 0; cy < h; ++cy)
     {
@@ -355,7 +381,7 @@ namespace renderer
 
         // Optionally map value to color (e.g. green to red)
         int fg = 32; // Default green
-        draw_text(x + cx, y + cy, blocks[block_idx], fg, 49);
+        draw_text(x + cx, y + cy, Symbols::blocks[block_idx], fg, 49);
       }
     }
   }

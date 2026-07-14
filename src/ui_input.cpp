@@ -265,7 +265,7 @@ void UIManager::handle_input()
     {
       show_context_menu = false;
     }
-    // Esc now does not hide highlight and does not open main menu
+    // Esc does not hide highlight and does not open main menu
     return;
   }
   else if (ev.key == input::KeyCode::Char)

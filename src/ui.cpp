@@ -191,16 +191,10 @@ void UIManager::apply_filter()
     svc_selected = std::max(-1, (int)filtered_svcs.size() - 1);
 }
 
-void UIManager::run(int argc, char *argv[])
+void UIManager::data_collection_loop()
 {
-  terminal::init();
-  refresh_data();
-
   auto last_data_refresh = std::chrono::steady_clock::now();
   auto last_clock_tick = std::chrono::steady_clock::now();
-
-  auto last_draw = std::chrono::steady_clock::now();
-  bool dirty = true;
 
   while (running)
   {
@@ -215,33 +209,72 @@ void UIManager::run(int argc, char *argv[])
     {
       if (!show_main_menu)
       {
+        std::lock_guard<std::mutex> lock(data_mutex);
         refresh_data();
       }
       last_data_refresh = std::chrono::steady_clock::now();
       timeout_data = refresh_rate_ms;
-      dirty = true;
+      data_dirty = true;
     }
 
     if (timeout_clock <= 0)
     {
-      uptime_s = process_manager.get_system_uptime();
+      int new_uptime = process_manager.get_system_uptime();
+      {
+        std::lock_guard<std::mutex> lock(data_mutex);
+        uptime_s = new_uptime;
+      }
       last_clock_tick = std::chrono::steady_clock::now();
       timeout_clock = 1000;
+      data_dirty = true;
+    }
+
+    int sleep_ms = std::min(timeout_data, timeout_clock);
+    if (sleep_ms > 100)
+      sleep_ms = 100; // Cap sleep to 100ms for quick exit
+
+    if (sleep_ms > 0)
+    {
+      std::this_thread::sleep_for(std::chrono::milliseconds(sleep_ms));
+    }
+  }
+}
+
+void UIManager::run(int argc, char *argv[])
+{
+  terminal::init();
+
+  {
+    std::lock_guard<std::mutex> lock(data_mutex);
+    refresh_data();
+  }
+
+  data_thread = std::thread(&UIManager::data_collection_loop, this);
+
+  auto last_draw = std::chrono::steady_clock::now();
+  bool dirty = true;
+
+  while (running)
+  {
+    if (data_dirty)
+    {
       dirty = true;
+      data_dirty = false;
     }
 
     auto draw_now = std::chrono::steady_clock::now();
     if (dirty && std::chrono::duration_cast<std::chrono::milliseconds>(draw_now - last_draw).count() >= 33)
     {
-      draw();
+      {
+        std::lock_guard<std::mutex> lock(data_mutex);
+        draw();
+      }
       last_draw = draw_now;
       dirty = false;
     }
 
-    int event_timeout = std::min((int)timeout_data, (int)timeout_clock);
-    if (input::has_event())
-      event_timeout = 0;
-    else if (dirty)
+    int event_timeout = 100;
+    if (dirty)
     {
       int time_till_draw = 33 - std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - last_draw).count();
       if (time_till_draw < 0)
@@ -254,11 +287,15 @@ void UIManager::run(int argc, char *argv[])
     {
       while (input::has_event())
       {
+        std::lock_guard<std::mutex> lock(data_mutex);
         handle_input();
         dirty = true;
       }
     }
   }
+
+  if (data_thread.joinable())
+    data_thread.join();
 
   terminal::restore();
 }

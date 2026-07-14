@@ -8,7 +8,6 @@
 
 namespace terminal
 {
-
   namespace
   {
     struct termios original_termios;
