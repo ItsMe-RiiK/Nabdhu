@@ -1,5 +1,5 @@
 #!/bin/bash
-# Wrapper script to run TaskManager in terminal
+# Wrapper script to run Nabdhu in terminal
 
 # 1. Single Instance GUI Enforcer
 if command -v xdotool >/dev/null 2>&1; then
