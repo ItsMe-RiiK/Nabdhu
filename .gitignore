@@ -1,6 +1,9 @@
 .cache/
 build/
 obj/
+.vscode/
+
 nabdhu
 compile_flags.txt
 run_nabdhu
+compile_commands.json
