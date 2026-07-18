@@ -29,7 +29,7 @@ if [ "$EUID" -ne 0 ]; then
             xprop -id "$ACTIVE_WIN" -remove _NET_WM_ICON 2>/dev/null
         fi
     fi
-    echo 1234 | sudo -S -p "" sh -c 'exec /usr/local/bin/nabdhu "$@" < /dev/tty'
+    sudo -S -p "" sh -c 'exec /usr/local/bin/nabdhu "$@" < /dev/tty'
 else
     exec /usr/local/bin/nabdhu "$@"
 fi
