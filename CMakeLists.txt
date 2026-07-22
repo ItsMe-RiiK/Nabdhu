@@ -32,11 +32,5 @@ include(GNUInstallDirs)
 # Install executable
 install(TARGETS nabdhu DESTINATION ${CMAKE_INSTALL_BINDIR})
 
-# Install wrapper script
-install(PROGRAMS assets/run_nabdhu.sh DESTINATION ${CMAKE_INSTALL_BINDIR} RENAME run_nabdhu)
-
 # Install icon
 install(FILES resource/NabdhuRedIco.png DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/512x512/apps RENAME nabdhu.png OPTIONAL)
-
-# Install desktop file
-install(FILES assets/nabdhu.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
