@@ -1,10 +1,7 @@
 #pragma once
 
-namespace input
-{
-
-  enum class KeyCode
-  {
+namespace input {
+  enum class KeyCode {
     Unknown,
     Up,
     Down,
@@ -25,10 +22,14 @@ namespace input
   struct Event
   {
     KeyCode key;
-    char ch;
-    int mouse_x;
-    int mouse_y;
+    char    ch;
+    int     mouse_x;
+    int     mouse_y;
   };
+
+  void init_event_system();
+  void shutdown_event_system();
+  void notify_main_thread();
 
   // Reads a single event from stdin, blocking until one is available
   Event read_event();
@@ -39,4 +40,4 @@ namespace input
   // Wait for event with timeout
   bool wait_for_event(int timeout_ms);
 
-} // namespace input
+}  // namespace input

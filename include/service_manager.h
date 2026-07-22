@@ -19,7 +19,7 @@ public:
 
   std::vector<ServiceInfo> get_services();
 
-  bool start_service(const std::string &name);
-  bool stop_service(const std::string &name);
-  bool restart_service(const std::string &name);
+  bool start_service(const std::string& name);
+  bool stop_service(const std::string& name);
+  bool restart_service(const std::string& name);
 };

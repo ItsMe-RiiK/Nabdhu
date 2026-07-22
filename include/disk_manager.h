@@ -4,12 +4,12 @@
 
 struct DiskInfo
 {
-  std::string name;
-  std::string mount_point;
+  std::string        name;
+  std::string        mount_point;
   unsigned long long total_bytes;
   unsigned long long free_bytes;
   unsigned long long used_bytes;
-  double used_percent;
+  double             used_percent;
 };
 
 class DiskManager
