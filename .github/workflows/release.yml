@@ -30,39 +30,40 @@ jobs:
           mkdir -p release_package
           cp build/nabdhu release_package/
           cp resource/NabdhuRedIco.png release_package/nabdhu.png
-          cat << 'EOF' > release_package/install.sh
-#!/bin/bash
-if [ "$EUID" -ne 0 ]; then echo "Please run with sudo"; exit 1; fi
-echo "Installing Nabdhu..."
-cp nabdhu /usr/local/bin/
-mkdir -p /usr/local/share/icons/hicolor/512x512/apps/
-cp nabdhu.png /usr/local/share/icons/hicolor/512x512/apps/
-mkdir -p /usr/local/share/applications/
-cat << 'DESKTOP' > /usr/local/share/applications/nabdhu.desktop
-[Desktop Entry]
-Version=1.0
-Name=Nabdhu
-GenericName=System Monitor
-Comment=Manage and monitor system processes and services
-Icon=nabdhu
-Exec=gnome-terminal --geometry=100x30 --class="Nabdhu" --title="Nabdhu" -- /usr/local/bin/nabdhu
-Terminal=false
-Categories=System;Monitor;ConsoleOnly;
-Type=Application
-DESKTOP
-update-desktop-database /usr/local/share/applications/ || true
-echo "Nabdhu installed successfully! You can now run 'nabdhu' in your terminal or find it in your Start Menu."
-EOF
-          cat << 'EOF' > release_package/uninstall.sh
-#!/bin/bash
-if [ "$EUID" -ne 0 ]; then echo "Please run with sudo"; exit 1; fi
-echo "Uninstalling Nabdhu..."
-rm -f /usr/local/bin/nabdhu
-rm -f /usr/local/share/icons/hicolor/512x512/apps/nabdhu.png
-rm -f /usr/local/share/applications/nabdhu.desktop
-update-desktop-database /usr/local/share/applications/ || true
-echo "Nabdhu uninstalled successfully."
-EOF
+          
+          # Create install.sh
+          echo '#!/bin/bash' > release_package/install.sh
+          echo 'if [ "$EUID" -ne 0 ]; then echo "Please run with sudo"; exit 1; fi' >> release_package/install.sh
+          echo 'echo "Installing Nabdhu..."' >> release_package/install.sh
+          echo 'cp nabdhu /usr/local/bin/' >> release_package/install.sh
+          echo 'mkdir -p /usr/local/share/icons/hicolor/512x512/apps/' >> release_package/install.sh
+          echo 'cp nabdhu.png /usr/local/share/icons/hicolor/512x512/apps/' >> release_package/install.sh
+          echo 'mkdir -p /usr/local/share/applications/' >> release_package/install.sh
+          echo 'cat << "DESKTOP" > /usr/local/share/applications/nabdhu.desktop' >> release_package/install.sh
+          echo '[Desktop Entry]' >> release_package/install.sh
+          echo 'Version=1.0' >> release_package/install.sh
+          echo 'Name=Nabdhu' >> release_package/install.sh
+          echo 'GenericName=System Monitor' >> release_package/install.sh
+          echo 'Comment=Manage and monitor system processes and services' >> release_package/install.sh
+          echo 'Icon=nabdhu' >> release_package/install.sh
+          echo 'Exec=gnome-terminal --geometry=100x30 --class="Nabdhu" --title="Nabdhu" -- /usr/local/bin/nabdhu' >> release_package/install.sh
+          echo 'Terminal=false' >> release_package/install.sh
+          echo 'Categories=System;Monitor;ConsoleOnly;' >> release_package/install.sh
+          echo 'Type=Application' >> release_package/install.sh
+          echo 'DESKTOP' >> release_package/install.sh
+          echo 'update-desktop-database /usr/local/share/applications/ || true' >> release_package/install.sh
+          echo 'echo "Nabdhu installed successfully! You can now run '\''nabdhu'\'' in your terminal or find it in your Start Menu."' >> release_package/install.sh
+          
+          # Create uninstall.sh
+          echo '#!/bin/bash' > release_package/uninstall.sh
+          echo 'if [ "$EUID" -ne 0 ]; then echo "Please run with sudo"; exit 1; fi' >> release_package/uninstall.sh
+          echo 'echo "Uninstalling Nabdhu..."' >> release_package/uninstall.sh
+          echo 'rm -f /usr/local/bin/nabdhu' >> release_package/uninstall.sh
+          echo 'rm -f /usr/local/share/icons/hicolor/512x512/apps/nabdhu.png' >> release_package/uninstall.sh
+          echo 'rm -f /usr/local/share/applications/nabdhu.desktop' >> release_package/uninstall.sh
+          echo 'update-desktop-database /usr/local/share/applications/ || true' >> release_package/uninstall.sh
+          echo 'echo "Nabdhu uninstalled successfully."' >> release_package/uninstall.sh
+          
           cd release_package
           chmod +x nabdhu install.sh uninstall.sh
           tar -czvf ../nabdhu-linux-x86_64.tar.gz *
