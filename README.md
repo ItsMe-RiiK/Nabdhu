@@ -13,7 +13,6 @@ A fast, lightweight, and highly optimized terminal user interface for system res
 - **Hardware Details**: Displays SysLoad, CPU model, core clocks, and core temps cleanly in the hardware info pane.
 - **Service Manager**: Seamlessly view, start, stop, and restart `systemd` background services without leaving the UI.
 - **Smart Search**: Filter processes and services instantly by typing in the search bar.
-- **Modern UI**: Polished responsive flexbox-style design that gracefully dynamically adjusts whether you are in full screen or splitting your terminal in half.
 
 ## 🛠️ Prerequisites
 
@@ -64,7 +63,7 @@ cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j$(nproc)
 
 # Install system-wide
-sudo make -C build install
+sudo cmake --install build
 ```
 
 ## 💻 Running Nabdhu
@@ -82,8 +81,7 @@ nabdhu
 - **Search**: Just start typing! The search bar will automatically capture your keystrokes.
 - **Context Menu**: Press `Enter` on any process or service to reveal action options (e.g. End Task, Start/Stop Service).
 - **Navigation**: Use the Arrow Keys to scroll through the list. Press `Tab` to switch between Processes and Services panes.
-- **Sorting**: Press `f` to toggle sorting between Name and CPU usage.
-- **Quit**: Press `q` or `Esc` to safely exit the application.
+- **Sorting**: Press `f` to toggle sorting between Name, CPU, and PID
 
 ## License
 
