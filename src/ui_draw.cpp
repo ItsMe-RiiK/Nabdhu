@@ -646,32 +646,29 @@ void UIManager::draw()
       r_edge -= counts_str.length();
       render.draw_text(r_edge, bottom_y, counts_str, 37, 49);
 
-      r_edge -= 4;
-      render.draw_text(r_edge, bottom_y, " \xE2\x94\x80\xE2\x94\x80 ", 37, 49);
+      r_edge -= 3;
+      render.draw_text(r_edge, bottom_y, " \xE2\x94\x80\xE2\x94\x80", 37, 49);
 
       std::string enter_sym = "\xE2\x86\xB5";
       r_edge -= 1;
       render.draw_text(r_edge, bottom_y, enter_sym, (proc_selected != -1) ? 91 : 90, 49);
 
-      r_edge -= 5;
-      render.draw_text(r_edge, bottom_y, " Info", (proc_selected != -1) ? 37 : 90, 49);
-
       r_edge -= 4;
-      render.draw_text(r_edge, bottom_y, " \xE2\x94\x80\xE2\x94\x80 ", 37, 49);
+      render.draw_text(r_edge, bottom_y, "info", (proc_selected != -1) ? 37 : 90, 49);
+
+      r_edge -= 3;
+      render.draw_text(r_edge, bottom_y, " \xE2\x94\x80\xE2\x94\x80", 37, 49);
 
       std::string down_sym = "\xE2\x86\x93";
       r_edge -= 1;
       render.draw_text(r_edge, bottom_y, down_sym, 91, 49);
 
-      r_edge -= 7;
-      render.draw_text(r_edge, bottom_y, " select", 37, 49);
+      r_edge -= 6;
+      render.draw_text(r_edge, bottom_y, "select", 37, 49);
 
       std::string up_sym = "\xE2\x86\x91";
       r_edge -= 1;
       render.draw_text(r_edge, bottom_y, up_sym, 91, 49);
-
-      r_edge -= 1;
-      render.draw_text(r_edge, bottom_y, " ", 37, 49);
     }
     else {
       // Services
