@@ -1,46 +1,60 @@
-Language: Cpp
-BasedOnStyle: LLVM
-
-# --- Indentation & Alignment ---
-IndentWidth: 2
-ContinuationIndentWidth: 4
-ConstructorInitializerIndentWidth: 4
 AccessModifierOffset: -2
-IndentAccessModifiers: false
-NamespaceIndentation: All
-CompactNamespaces: false
-DerivePointerAlignment: false
+AlignAfterOpenBracket: BlockIndent
+AlignConsecutiveAssignments: Consecutive
+AlignConsecutiveDeclarations: Consecutive
+AlignEscapedNewlines: DontAlign
+AlignOperands: AlignAfterOperator
+AlignTrailingComments: true
+AllowAllParametersOfDeclarationOnNextLine: true
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortEnumsOnASingleLine: false
+AllowShortIfStatementsOnASingleLine: false
+
+BreakTemplateDeclarations: Yes
+BasedOnStyle: WebKit
+BitFieldColonSpacing: After
+BinPackParameters: false
+BreakBeforeBinaryOperators: NonAssignment
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterFunction: true
+  AfterClass: true
+  AfterStruct: true
+  AfterControlStatement: false
+  BeforeElse: true
+  AfterEnum: false
+  AfterNamespace: false
+
+BreakBeforeTernaryOperators: true
+BreakConstructorInitializers: AfterColon
+BreakStringLiterals: false
+
+ColumnLimit: 100
+ContinuationIndentWidth: 2
+Cpp11BracedListStyle: true
+CompactNamespaces: true
+
 FixNamespaceComments: true
 
-# --- Braces ---
-BreakBeforeBraces: Allman
-
-# --- Breaking Rules ---
-AlignAfterOpenBracket: BlockIndent
-AlignOperands: true
-AlignTrailingComments: false
-AllowShortBlocksOnASingleLine: Empty
-AllowShortCaseLabelsOnASingleLine: false
-AllowShortFunctionsOnASingleLine: Empty
-AllowShortIfStatementsOnASingleLine: Never
-AllowShortLoopsOnASingleLine: false
-AlwaysBreakBeforeMultilineStrings: false
-AlwaysBreakTemplateDeclarations: false
-BreakBeforeBinaryOperators: None
-BreakBeforeTernaryOperators: false
-BreakConstructorInitializers: AfterColon
-BreakBeforeInheritanceComma: false
-BreakStringLiterals: false
-SeparateDefinitionBlocks: Always
-MaxEmptyLinesToKeep: 1
-
-# --- Other Formats ---
-ColumnLimit: 140
-BinPackArguments: true
-BinPackParameters: true
-ConstructorInitializerAllOnOneLineOrOnePerLine: false
-Cpp11BracedListStyle: true
-SortIncludes: true
-SpaceBeforeParens: ControlStatements
-DisableFormat: false
 IncludeBlocks: Regroup
+IndentGotoLabels: false
+IndentPPDirectives: BeforeHash
+IndentWidth: 2
+
+MaxEmptyLinesToKeep: 2
+
+NamespaceIndentation: All
+
+PackConstructorInitializers: Never
+
+ReflowComments: false
+
+SortIncludes: true
+SortUsingDeclarations: false
+SpaceAfterCStyleCast: true
+SpaceAfterTemplateKeyword: false
+SpaceBeforeCaseColon: true
+SpaceBeforeCpp11BracedList: false
+SpaceBeforeInheritanceColon: false
+SpaceInEmptyBlock: false
+SpacesBeforeTrailingComments: 2
