@@ -52,8 +52,9 @@ jobs:
           echo 'Type=Application' >> release_package/install.sh
           echo 'DESKTOP' >> release_package/install.sh
           echo 'update-desktop-database /usr/local/share/applications/ || true' >> release_package/install.sh
-          echo 'echo "Nabdhu installed successfully! You can now run '\''nabdhu'\'' in your terminal or find it in your Start Menu."' >> release_package/install.sh
-          
+          echo 'rm -f nabdhu nabdhu.png' >> release_package/install.sh
+          echo 'echo "Nabdhu installed successfully! The Start Menu will now use the Nabdhu icon."' >> release_package/install.sh
+          echo 'echo "Installation files cleaned up. You can safely delete this extracted folder or keep uninstall.sh just in case."' >> release_package/install.sh
           # Create uninstall.sh
           echo '#!/bin/bash' > release_package/uninstall.sh
           echo 'if [ "$EUID" -ne 0 ]; then echo "Please run with sudo"; exit 1; fi' >> release_package/uninstall.sh
