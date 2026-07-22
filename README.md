@@ -33,45 +33,49 @@ sudo pacman -S base-devel cmake xdotool xorg-xprop
 sudo apt install build-essential cmake xdotool x11-utils
 ```
 
-## 🚀 Building the App
+## 🚀 Installation
 
-This project uses CMake for an easy, out-of-source build configuration.
+There are two ways to install Nabdhu: downloading a pre-compiled binary, or building it yourself from source.
+
+### Option 1: Pre-Compiled Binary (Easiest)
+
+1. Go to the [Releases](https://github.com/ItsMe-RiiK/Nabdhu/releases) page and download the latest `nabdhu-linux-x86_64.tar.gz`.
+2. Extract the archive and enter the folder:
+   ```bash
+   tar -xzvf nabdhu-linux-x86_64.tar.gz
+   cd release_package
+   ```
+3. Run the provided installer script to install the app and its Start Menu shortcut:
+   ```bash
+   sudo ./install.sh
+   ```
+*(If you ever want to remove it, just run `sudo ./uninstall.sh` from the same folder).*
+
+### Option 2: Build From Source
+
+If you prefer to compile Nabdhu natively on your system, you can build it using CMake:
 
 ```bash
 git clone https://github.com/ItsMe-RiiK/Nabdhu.git
 cd Nabdhu
 
-# Generate build files
-cmake -B build
+# Generate build files and compile
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j$(nproc)
 
-# Compile the application
-cmake --build build
-```
-
-## 💻 System-Wide Installation (Recommended)
-
-Because Linux's security model protects deep hardware information and the ability to start/stop system services, **this application is best run as Root**.
-
-We provide a system-wide installation that installs a wrapper script (`run_nabdhu`). This securely elevates privileges while preserving your current `$DISPLAY` and graphical settings, ensuring it works perfectly on both **X11** and **Wayland**.
-
-To install the binary, icons, and Start Menu launcher system-wide, simply run:
-
-```bash
+# Install system-wide
 sudo make -C build install
-sudo update-desktop-database /usr/local/share/applications/
 ```
 
-Once installed, you can launch **Nabdhu** directly from your Desktop Environment's Application Menu!
+## 💻 Running Nabdhu
 
-### Running Manually from Terminal
-You can still start the task manager normally by running:
+Once installed (via either method), you can launch Nabdhu by clicking its icon in your **Start Menu**, or by typing its name in your terminal:
+
 ```bash
-/usr/local/bin/nabdhu
+nabdhu
 ```
-Or for full features:
-```bash
-/usr/local/bin/run_nabdhu
-```
+
+**Note on Privileges**: Because Linux's security model protects deep hardware information and the ability to start/stop system services, Nabdhu's advanced features require Root privileges. If you run `nabdhu` as a standard user, it will work perfectly but with limited access. To use the Service Manager, run `sudo nabdhu` manually.
 
 ## ⌨️ Controls
 
