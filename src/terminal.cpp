@@ -6,28 +6,23 @@
 #include <termios.h>
 #include <unistd.h>
 
-namespace terminal
-{
-  namespace
-  {
+namespace terminal {
+  namespace {
     struct termios original_termios;
-    bool resized = false;
-    int current_width = 0;
-    int current_height = 0;
+    bool           resized        = false;
+    int            current_width  = 0;
+    int            current_height = 0;
 
-    void sigwinch_handler(int)
-    {
-      resized = true;
-    }
+    void sigwinch_handler(int) { resized = true; }
 
     void update_size()
     {
       struct winsize w;
       ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
-      current_width = w.ws_col;
+      current_width  = w.ws_col;
       current_height = w.ws_row;
     }
-  } // namespace
+  }  // namespace
 
   void init()
   {
@@ -35,7 +30,7 @@ namespace terminal
     struct termios raw = original_termios;
     raw.c_lflag &= ~(ECHO | ICANON | IEXTEN);
     raw.c_iflag &= ~(IXON | ICRNL);
-    raw.c_cc[VMIN] = 0;
+    raw.c_cc[VMIN]  = 0;
     raw.c_cc[VTIME] = 0;
     tcsetattr(STDIN_FILENO, TCSANOW, &raw);
 
@@ -72,10 +67,7 @@ namespace terminal
     return current_height;
   }
 
-  bool is_resized()
-  {
-    return resized;
-  }
+  bool is_resized() { return resized; }
 
   void clear_resized_flag()
   {
@@ -83,4 +75,4 @@ namespace terminal
     update_size();
   }
 
-} // namespace terminal
+}  // namespace terminal
