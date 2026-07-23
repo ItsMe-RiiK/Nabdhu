@@ -28,8 +28,6 @@ int enforce_single_instance()
 
 int main(int argc, char* argv[])
 {
-  setenv("GDK_BACKEND", "x11", 1);
-
   // No forced sudo escalation. Nabdhu runs as a normal CLI app.
   // If the user needs to start/stop services, they can run `sudo nabdhu` manually.
 
