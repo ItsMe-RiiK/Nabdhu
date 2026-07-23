@@ -46,8 +46,8 @@ jobs:
           echo 'GenericName=System Monitor' >> release_package/install.sh
           echo 'Comment=Manage and monitor system processes and services' >> release_package/install.sh
           echo 'Icon=nabdhu' >> release_package/install.sh
-          echo 'Exec=gnome-terminal --geometry=100x30 --class="Nabdhu" --title="Nabdhu" -- /usr/local/bin/nabdhu' >> release_package/install.sh
-          echo 'Terminal=false' >> release_package/install.sh
+          echo 'Exec=/usr/local/bin/nabdhu' >> release_package/install.sh
+          echo 'Terminal=true' >> release_package/install.sh
           echo 'Categories=System;Monitor;ConsoleOnly;' >> release_package/install.sh
           echo 'Type=Application' >> release_package/install.sh
           echo 'DESKTOP' >> release_package/install.sh
@@ -62,6 +62,7 @@ jobs:
           echo 'rm -f /usr/local/bin/nabdhu' >> release_package/uninstall.sh
           echo 'rm -f /usr/local/share/icons/hicolor/512x512/apps/nabdhu.png' >> release_package/uninstall.sh
           echo 'rm -f /usr/local/share/applications/nabdhu.desktop' >> release_package/uninstall.sh
+          echo 'rm -f /home/*/.local/share/applications/nabdhu.desktop 2>/dev/null || true' >> release_package/uninstall.sh
           echo 'update-desktop-database /usr/local/share/applications/ || true' >> release_package/uninstall.sh
           echo 'echo "Nabdhu uninstalled successfully."' >> release_package/uninstall.sh
           
