@@ -78,10 +78,9 @@ jobs:
           echo 'rm -f /home/*/.local/share/applications/nabdhu.desktop 2>/dev/null || true' >> release_package/uninstall.sh
           echo 'update-desktop-database /usr/local/share/applications/ || true' >> release_package/uninstall.sh
           echo 'echo "Nabdhu uninstalled successfully."' >> release_package/uninstall.sh
-          
-          cd release_package
-          chmod +x nabdhu install.sh uninstall.sh
-          tar -czvf ../nabdhu-linux-x86_64.tar.gz *
+          chmod +x release_package/nabdhu release_package/install.sh release_package/uninstall.sh
+          mv release_package nabdhu-linux-x86_64
+          tar -czvf nabdhu-linux-x86_64.tar.gz nabdhu-linux-x86_64
 
       - name: Release
         uses: softprops/action-gh-release@v2
