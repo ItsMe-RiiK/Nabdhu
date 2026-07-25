@@ -38,6 +38,18 @@ jobs:
           echo 'cp nabdhu /usr/local/bin/' >> release_package/install.sh
           echo 'mkdir -p /usr/local/share/icons/hicolor/512x512/apps/' >> release_package/install.sh
           echo 'cp nabdhu.png /usr/local/share/icons/hicolor/512x512/apps/' >> release_package/install.sh
+          echo 'cat << "EOF" > /usr/local/bin/nabdhu-launcher' >> release_package/install.sh
+          echo '#!/bin/bash' >> release_package/install.sh
+          echo 'TERMS=("x-terminal-emulator -e" "gnome-terminal --" "konsole -e" "qterminal -e" "kitty --" "alacritty -e" "xfce4-terminal -e" "terminator -e" "lxterminal -e" "xterm -e")' >> release_package/install.sh
+          echo 'for t in "${TERMS[@]}"; do' >> release_package/install.sh
+          echo '  CMD=$(echo $t | cut -d" " -f1)' >> release_package/install.sh
+          echo '  if command -v $CMD >/dev/null 2>&1; then' >> release_package/install.sh
+          echo '    exec $t /usr/local/bin/nabdhu' >> release_package/install.sh
+          echo '  fi' >> release_package/install.sh
+          echo 'done' >> release_package/install.sh
+          echo '/usr/local/bin/nabdhu' >> release_package/install.sh
+          echo 'EOF' >> release_package/install.sh
+          echo 'chmod +x /usr/local/bin/nabdhu-launcher' >> release_package/install.sh
           echo 'mkdir -p /usr/local/share/applications/' >> release_package/install.sh
           echo 'cat << "DESKTOP" > /usr/local/share/applications/nabdhu.desktop' >> release_package/install.sh
           echo '[Desktop Entry]' >> release_package/install.sh
@@ -46,8 +58,8 @@ jobs:
           echo 'GenericName=System Monitor' >> release_package/install.sh
           echo 'Comment=Manage and monitor system processes and services' >> release_package/install.sh
           echo 'Icon=nabdhu' >> release_package/install.sh
-          echo 'Exec=/usr/local/bin/nabdhu' >> release_package/install.sh
-          echo 'Terminal=true' >> release_package/install.sh
+          echo 'Exec=/usr/local/bin/nabdhu-launcher' >> release_package/install.sh
+          echo 'Terminal=false' >> release_package/install.sh
           echo 'Categories=System;Monitor;ConsoleOnly;' >> release_package/install.sh
           echo 'Type=Application' >> release_package/install.sh
           echo 'DESKTOP' >> release_package/install.sh
@@ -60,6 +72,7 @@ jobs:
           echo 'if [ "$EUID" -ne 0 ]; then echo "Please run with sudo"; exit 1; fi' >> release_package/uninstall.sh
           echo 'echo "Uninstalling Nabdhu..."' >> release_package/uninstall.sh
           echo 'rm -f /usr/local/bin/nabdhu' >> release_package/uninstall.sh
+          echo 'rm -f /usr/local/bin/nabdhu-launcher' >> release_package/uninstall.sh
           echo 'rm -f /usr/local/share/icons/hicolor/512x512/apps/nabdhu.png' >> release_package/uninstall.sh
           echo 'rm -f /usr/local/share/applications/nabdhu.desktop' >> release_package/uninstall.sh
           echo 'rm -f /home/*/.local/share/applications/nabdhu.desktop 2>/dev/null || true' >> release_package/uninstall.sh
