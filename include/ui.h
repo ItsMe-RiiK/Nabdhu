@@ -40,6 +40,7 @@ private:
 
   enum class SortBy {
     CPU,
+    Memory,
     Name,
     PID
   };
@@ -61,6 +62,9 @@ private:
 
   std::string search_query          = "";
   bool        in_search_mode        = false;
+  bool        follow_mode           = false;
+  int         follow_pid            = -1;
+  std::string follow_svc_name       = "";
   bool        show_context_menu     = false;
   int         context_menu_selected = 0;
 

@@ -115,7 +115,6 @@ private:
 
   std::unordered_map<int, CpuData>           prev_process_cpu;
   std::unordered_map<int, CachedProcessData> process_cache;
-  double                                     last_cache_time;
   double                                     prev_uptime;
 
   std::vector<ProcessInfo>   cached_processes;

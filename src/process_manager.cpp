@@ -14,7 +14,6 @@
 #include <unistd.h>
 
 ProcessManager::ProcessManager() :
-    last_cache_time(0.0),
     prev_uptime(0),
     first_global_cpu_run(true),
     first_process_run(true)
@@ -499,15 +498,8 @@ const std::vector<ProcessInfo>& ProcessManager::get_processes()
     return cached_processes;
   }
 
-  double                                     uptime = get_uptime_internal();
-  std::unordered_map<int, CpuData>           current_cpu_map;
-  std::unordered_map<int, CachedProcessData> new_cache;
-
-  bool update_cache = false;
-  if (uptime - last_cache_time >= 2.0 || last_cache_time == 0.0) {
-    update_cache    = true;
-    last_cache_time = uptime;
-  }
+  double                           uptime = get_uptime_internal();
+  std::unordered_map<int, CpuData> current_cpu_map;
 
   long page_size = sysconf(_SC_PAGESIZE);
   char stat_buf[1024];
@@ -541,9 +533,6 @@ const std::vector<ProcessInfo>& ProcessManager::get_processes()
           info.user      = cache_it->second.user;
           info.is_app    = cache_it->second.is_app;
           found_in_cache = true;
-          if (update_cache) {
-            new_cache[pid] = cache_it->second;
-          }
         }
 
         if (!found_in_cache) {
@@ -604,14 +593,12 @@ const std::vector<ProcessInfo>& ProcessManager::get_processes()
             close(fd_cmd);
           }
 
-          if (update_cache) {
-            CachedProcessData new_cache_data;
-            new_cache_data.command = info.command;
-            new_cache_data.name    = info.name;
-            new_cache_data.user    = info.user;
-            new_cache_data.is_app  = info.is_app;
-            new_cache[pid]         = new_cache_data;
-          }
+          CachedProcessData new_cache_data;
+          new_cache_data.command = info.command;
+          new_cache_data.name    = info.name;
+          new_cache_data.user    = info.user;
+          new_cache_data.is_app  = info.is_app;
+          process_cache[pid]     = new_cache_data;
         }
 
         char path_buf2[256];
@@ -629,10 +616,8 @@ const std::vector<ProcessInfo>& ProcessManager::get_processes()
               ) {
                 char* lp = strchr(stat_buf, '(');
                 if (lp && lp < rp) {
-                  info.name = std::string(lp + 1, rp - lp - 1);
-                  if (update_cache) {
-                    new_cache[pid].name = info.name;
-                  }
+                  info.name               = std::string(lp + 1, rp - lp - 1);
+                  process_cache[pid].name = info.name;
                 }
               }
 
@@ -649,9 +634,8 @@ const std::vector<ProcessInfo>& ProcessManager::get_processes()
                   if (slash_pos != std::string::npos)
                     first_cmd = first_cmd.substr(slash_pos + 1);
                   if (!first_cmd.empty()) {
-                    info.name = first_cmd;
-                    if (update_cache)
-                      new_cache[pid].name = info.name;
+                    info.name               = first_cmd;
+                    process_cache[pid].name = info.name;
                   }
                 }
               }
@@ -720,19 +704,12 @@ const std::vector<ProcessInfo>& ProcessManager::get_processes()
 
   cached_processes.resize(process_count);
 
-  if (update_cache) {
-    process_cache = std::move(new_cache);
-  }
-  else {
-    // If we didn't update cache this frame, we need to retain process_cache for
-    // the next frame We prune dead pids from it based on current pids
-    for (auto it = process_cache.begin(); it != process_cache.end();) {
-      if (current_cpu_map.find(it->first) == current_cpu_map.end()) {
-        it = process_cache.erase(it);
-      }
-      else {
-        ++it;
-      }
+  for (auto it = process_cache.begin(); it != process_cache.end();) {
+    if (current_cpu_map.find(it->first) == current_cpu_map.end()) {
+      it = process_cache.erase(it);
+    }
+    else {
+      ++it;
     }
   }
 

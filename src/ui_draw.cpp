@@ -543,9 +543,10 @@ void UIManager::draw()
     tx += 3;
 
     // Sort indicator (draw on right edge first)
-    std::string sort_text = (current_sort == SortBy::CPU)  ? "ort(CPU) "
-                          : (current_sort == SortBy::Name) ? "ort(Name)"
-                                                           : "ort(PID) ";
+    std::string sort_text = (current_sort == SortBy::CPU)    ? "ort(CPU) "
+                          : (current_sort == SortBy::Memory) ? "ort(Mem) "
+                          : (current_sort == SortBy::Name)   ? "ort(Name)"
+                                                             : "ort(PID) ";
     int         sort_x    = left_w + right_w - sort_text.length() - 2;
     render.draw_text(sort_x, 1, "S", 91);
     render.draw_text(sort_x + 1, 1, sort_text, 37);
@@ -659,6 +660,18 @@ void UIManager::draw()
       r_edge -= 3;
       render.draw_text(r_edge, bottom_y, " \xE2\x94\x80\xE2\x94\x80", 37, 49);
 
+      r_edge -= 7;
+      render.draw_text(r_edge, bottom_y, "ollow", (follow_mode ? 32 : 37), 49);
+
+      std::string follow_sym = "f";
+      r_edge -= 1;
+      render.draw_text(
+        r_edge, bottom_y, follow_sym, (proc_selected != -1) ? (follow_mode ? 92 : 91) : 90, 49
+      );
+
+      r_edge -= 3;
+      render.draw_text(r_edge, bottom_y, " \xE2\x94\x80\xE2\x94\x80", 37, 49);
+
       std::string down_sym = "\xE2\x86\x93";
       r_edge -= 1;
       render.draw_text(r_edge, bottom_y, down_sym, 91, 49);
@@ -735,6 +748,18 @@ void UIManager::draw()
 
       r_edge -= 5;
       render.draw_text(r_edge, bottom_y, "Info", (svc_selected != -1) ? 37 : 90, 49);
+
+      r_edge -= 4;
+      render.draw_text(r_edge, bottom_y, " \xE2\x94\x80\xE2\x94\x80 ", 37, 49);
+
+      r_edge -= 7;
+      render.draw_text(r_edge, bottom_y, "ollow", (follow_mode ? 32 : 37), 49);
+
+      std::string follow_sym = "f";
+      r_edge -= 1;
+      render.draw_text(
+        r_edge, bottom_y, follow_sym, (svc_selected != -1) ? (follow_mode ? 92 : 91) : 90, 49
+      );
 
       r_edge -= 4;
       render.draw_text(r_edge, bottom_y, " \xE2\x94\x80\xE2\x94\x80 ", 37, 49);

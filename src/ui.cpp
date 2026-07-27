@@ -158,6 +158,12 @@ void UIManager::apply_filter()
       }
     }
   }
+  else if (current_sort == SortBy::Memory) {
+    std::stable_sort(
+      filtered_procs.begin(), filtered_procs.end(),
+      [](const ProcessInfo* a, const ProcessInfo* b) { return a->memory_kb > b->memory_kb; }
+    );
+  }
   else if (current_sort == SortBy::Name) {
     std::sort(
       filtered_procs.begin(), filtered_procs.end(),
@@ -181,6 +187,47 @@ void UIManager::apply_filter()
 
   if (svc_selected >= (int) filtered_svcs.size())
     svc_selected = std::max(-1, (int) filtered_svcs.size() - 1);
+
+  if (follow_mode) {
+    if (tab_selected == 0) {
+      bool found = false;
+      for (int i = 0; i < (int) filtered_procs.size(); ++i) {
+        if (filtered_procs[i]->pid == follow_pid) {
+          proc_selected = i;
+          found         = true;
+          break;
+        }
+      }
+      if (!found)
+        follow_mode = false;
+      else {
+        int list_h = std::max(1, terminal::get_height() - 4);
+        if (proc_selected < proc_scroll)
+          proc_scroll = proc_selected;
+        else if (proc_selected >= proc_scroll + list_h)
+          proc_scroll = proc_selected - list_h + 1;
+      }
+    }
+    else {
+      bool found = false;
+      for (int i = 0; i < (int) filtered_svcs.size(); ++i) {
+        if (filtered_svcs[i]->name == follow_svc_name) {
+          svc_selected = i;
+          found        = true;
+          break;
+        }
+      }
+      if (!found)
+        follow_mode = false;
+      else {
+        int list_h = std::max(1, terminal::get_height() - 4);
+        if (svc_selected < svc_scroll)
+          svc_scroll = svc_selected;
+        else if (svc_selected >= svc_scroll + list_h)
+          svc_scroll = svc_selected - list_h + 1;
+      }
+    }
+  }
 }
 
 void UIManager::data_collection_loop()

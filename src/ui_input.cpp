@@ -88,6 +88,7 @@ void UIManager::handle_input()
       if (tab_selected == 1 && raw_svcs.empty()) {
         raw_svcs = service_manager.get_services();
       }
+      follow_mode = false;
       apply_filter();  // Always apply filter to clear search results and refresh
     }
     return;
@@ -98,6 +99,7 @@ void UIManager::handle_input()
   int list_h       = std::max(1, h - list_start_y);
 
   if (ev.key == input::KeyCode::Up) {
+    follow_mode = false;
     if (tab_selected == 0) {
       if (proc_selected == -1) {
         proc_scroll = std::max(0, proc_scroll - 1);
@@ -132,6 +134,7 @@ void UIManager::handle_input()
     }
   }
   else if (ev.key == input::KeyCode::Down) {
+    follow_mode = false;
     if (tab_selected == 0) {
       if (proc_selected == -1) {
         proc_selected = proc_scroll;
@@ -160,6 +163,7 @@ void UIManager::handle_input()
     }
   }
   else if (ev.key == input::KeyCode::MouseScrollUp) {
+    follow_mode = false;
     if (ev.mouse_x > 40) {
       if (tab_selected == 0)
         proc_scroll -= 3;
@@ -168,6 +172,7 @@ void UIManager::handle_input()
     }
   }
   else if (ev.key == input::KeyCode::MouseScrollDown) {
+    follow_mode = false;
     if (ev.mouse_x > 40) {
       if (tab_selected == 0)
         proc_scroll += 3;
@@ -240,14 +245,34 @@ void UIManager::handle_input()
         show_proc = !show_proc;
       else if (ev.ch == 'd' || ev.ch == 'D')
         show_disk = !show_disk;
-      else if (ev.ch == 'f' || ev.ch == 'F')
+      else if (ev.ch == 'F')
         in_search_mode = true;
+      else if (ev.ch == 'f') {
+        follow_mode = !follow_mode;
+        if (follow_mode) {
+          if (
+            tab_selected == 0 && proc_selected >= 0 && proc_selected < (int) filtered_procs.size()
+          ) {
+            follow_pid = filtered_procs[proc_selected]->pid;
+          }
+          else if (
+            tab_selected == 1 && svc_selected >= 0 && svc_selected < (int) filtered_svcs.size()
+          ) {
+            follow_svc_name = filtered_svcs[svc_selected]->name;
+          }
+          else {
+            follow_mode = false;
+          }
+        }
+      }
       else if (ev.ch == 'm' || ev.ch == 'M') {
         show_main_menu     = true;
         main_menu_selected = 0;
       }
       else if (ev.ch == 's' || ev.ch == 'S') {
         if (current_sort == SortBy::CPU)
+          current_sort = SortBy::Memory;
+        else if (current_sort == SortBy::Memory)
           current_sort = SortBy::Name;
         else if (current_sort == SortBy::Name)
           current_sort = SortBy::PID;
