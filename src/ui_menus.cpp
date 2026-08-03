@@ -19,8 +19,8 @@ void UIManager::perform_action()
     if (action == "End Task")
       process_manager.kill_process(pid);
     else if (action == "Open Location") {
-      std::string cmd =
-        "xdg-open $(dirname $(readlink -f /proc/" + std::to_string(pid) + "/exe)) 2>/dev/null &";
+      std::string cmd = "xdg-open \"$(dirname \"$(readlink -f /proc/" + std::to_string(pid)
+                      + "/exe)\")\" 2>/dev/null &";
       system(cmd.c_str());
     }
   }
@@ -29,9 +29,18 @@ void UIManager::perform_action()
     if (action == "End Service")
       service_manager.stop_service(sname);
     else if (action == "Open Location") {
-      std::string cmd = "xdg-open $(dirname $(systemctl show -p FragmentPath " + sname
-                      + " | cut -d= -f2)) 2>/dev/null &";
-      system(cmd.c_str());
+      bool valid = true;
+      for (char c : sname) {
+        if (!std::isalnum(c) && c != '-' && c != '_' && c != '.' && c != '@') {
+          valid = false;
+          break;
+        }
+      }
+      if (valid) {
+        std::string cmd = "xdg-open \"$(dirname \"$(systemctl show -p FragmentPath " + sname
+                        + " | cut -d= -f2)\")\" 2>/dev/null &";
+        system(cmd.c_str());
+      }
     }
   }
 }

@@ -209,7 +209,7 @@ MemHardwareInfo ProcessManager::get_memory_hardware_info()
   MemHardwareInfo info;
   FILE*           fp = popen("/usr/bin/dmidecode -t memory 2>/dev/null", "r");
   if (fp == nullptr) {
-    fp = popen("dmidecode -t memory 2>/dev/null", "r");
+    fp = popen("/usr/sbin/dmidecode -t memory 2>/dev/null", "r");
   }
   if (fp == nullptr) {
     return info;
@@ -750,7 +750,7 @@ std::vector<GpuInfo> ProcessManager::get_gpu_info()
 
   // NVIDIA
   FILE* pipe = popen(
-    "nvidia-smi "
+    "/usr/bin/nvidia-smi "
     "--query-gpu=name,utilization.gpu,memory.used,memory.total,temperature."
     "gpu,power.draw --format=csv,noheader,nounits 2>/dev/null",
     "r"

@@ -6,8 +6,16 @@
 
 int enforce_single_instance()
 {
-  std::string lock_path = "/tmp/nabdhu_" + std::to_string(getuid()) + ".lock";
-  int         fd        = open(lock_path.c_str(), O_RDWR | O_CREAT, 0666);
+  std::string lock_path;
+  const char* xdg_runtime_dir = getenv("XDG_RUNTIME_DIR");
+  if (xdg_runtime_dir != nullptr && xdg_runtime_dir[0] != '\0') {
+    lock_path = std::string(xdg_runtime_dir) + "/nabdhu.lock";
+  }
+  else {
+    lock_path = "/tmp/nabdhu_" + std::to_string(getuid()) + ".lock";
+  }
+
+  int fd = open(lock_path.c_str(), O_RDWR | O_CREAT | O_NOFOLLOW, 0600);
   if (fd < 0) {
     return -1;
   }

@@ -65,20 +65,38 @@ std::vector<ServiceInfo> ServiceManager::get_services()
   return services;
 }
 
+static bool is_valid_service_name(const std::string& name)
+{
+  if (name.empty())
+    return false;
+  for (char c : name) {
+    if (!std::isalnum(c) && c != '-' && c != '_' && c != '.' && c != '@') {
+      return false;
+    }
+  }
+  return true;
+}
+
 bool ServiceManager::start_service(const std::string& name)
 {
+  if (!is_valid_service_name(name))
+    return false;
   std::string cmd = "pkexec systemctl start " + name;
   return system(cmd.c_str()) == 0;
 }
 
 bool ServiceManager::stop_service(const std::string& name)
 {
+  if (!is_valid_service_name(name))
+    return false;
   std::string cmd = "pkexec systemctl stop " + name;
   return system(cmd.c_str()) == 0;
 }
 
 bool ServiceManager::restart_service(const std::string& name)
 {
+  if (!is_valid_service_name(name))
+    return false;
   std::string cmd = "pkexec systemctl restart " + name;
   return system(cmd.c_str()) == 0;
 }
